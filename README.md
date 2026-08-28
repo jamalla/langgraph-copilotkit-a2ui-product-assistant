@@ -217,6 +217,23 @@ Note this also means **Part 5's agent → grid direction is unverified.** Clicki
 selection to the agent (confirmed working); the agent writing selection back to the grid depends on
 the same empty `agent.state` and has not been demonstrated.
 
+### Tailwind does not scan a workspace package unless you tell it
+
+Moving components into `packages/a2ui-kit` silently dropped **every Tailwind class they use**.
+Tailwind 4 auto-detects sources relative to the stylesheet that imports it, and that detection stops
+at the app. Nothing errors — the CSS simply is not generated, so the chat controls collapse to
+unstyled text (a `size-6` button measured **11×19** instead of 24×24), the injected panels lose
+their layout, and the popup grows scrollbars around content that should have been contained.
+
+One line in `apps/web/app/globals.css` fixes it:
+
+```css
+@import "tailwindcss";
+@source "../../../packages/a2ui-kit/src";
+```
+
+Anything moved into a package that ships JSX needs the same treatment.
+
 ### Panels must anchor to `.copilotKitChat`, not `.copilotKitMessages`
 
 The message list does not exist until the first message is sent, and it is
