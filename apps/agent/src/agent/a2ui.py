@@ -106,25 +106,69 @@ def build_tool_runtime(
     )
 
 
+def _context_entries(state: Any) -> list[Any]:
+    ag_ui = (state.get("ag-ui") if isinstance(state, dict) else None) or {}
+    return list(ag_ui.get("context") or [])
+
+
+def _description(entry: Any) -> str:
+    if isinstance(entry, dict):
+        return str(entry.get("description") or "")
+    return str(getattr(entry, "description", "") or "")
+
+
 def a2ui_is_available(state: Any) -> bool:
-    """Whether a browser is attached and expecting a rendered surface.
+    """Whether a browser is attached and able to render a surface.
 
-    The signal is `inject_a2ui_tool`, which the A2UI middleware forwards when
-    the runtime has `a2ui` configured. It is NOT `a2ui_schema`.
+    ## Why this does not simply read `ag-ui.a2ui_schema`
 
-    That distinction cost an afternoon. Gating on `a2ui_schema` looks more
-    correct - surely you need the catalog before you can design against it -
-    but the schema is contributed by the BROWSER's catalog, so it is absent
-    whenever the client does not send one, and the gate then silently fell back
-    to markdown even though A2UI was fully configured and working.
+    Because in THIS architecture that key is never set, and the reason is worth
+    understanding.
 
-    A missing schema is not fatal: the subagent still knows the A2UI v0.9 basic
-    catalog from its own guidelines and produces valid operations without it.
-    The schema only makes the components it picks more accurate. So: render
-    whenever we are asked to, and treat the schema as an enhancement.
+    `ag_ui_langgraph` (Python) has a `split_a2ui_schema_context` helper that
+    lifts the A2UI component schema out of the AG-UI context and into
+    `state["ag-ui"]["a2ui_schema"]`. Every guide points at that key. It works
+    perfectly - I tested it directly on the exact byte-identical description the
+    browser sends, and it matched.
+
+    It just never runs. That helper lives on the path where PYTHON serves the
+    AG-UI endpoint (`LangGraphAGUIAgent` + FastAPI). We use the Node
+    `LangGraphAgent`, which talks to `langgraph dev` over the LangGraph Platform
+    HTTP API, so the Python adapter is not in the request path at all. The
+    schema still arrives - as an ordinary context entry, alongside the catalog
+    capabilities and the generation and design guidelines.
+
+    So detect A2UI from the context entries that actually show up. The
+    `inject_a2ui_tool` and `a2ui_schema` checks stay as a fallback for anyone who
+    later switches to the Python-served path.
+
+    Nothing about the miss was visible: `a2uiEnabled: true` on the runtime, four
+    A2UI context entries on the wire, a surface ready to draw - and a gate that
+    silently stayed shut, so every answer came back as markdown.
     """
     ag_ui = (state.get("ag-ui") if isinstance(state, dict) else None) or {}
-    return bool(ag_ui.get("inject_a2ui_tool") or ag_ui.get("a2ui_schema"))
+    if ag_ui.get("inject_a2ui_tool") or ag_ui.get("a2ui_schema"):
+        return True
+    return any(_description(e).startswith("A2UI ") for e in _context_entries(state))
+
+
+def a2ui_schema_from_state(state: Any) -> str | None:
+    """The component schema, wherever it ended up.
+
+    Prefers the split-out key; falls back to the context entry the Node adapter
+    leaves in place.
+    """
+    ag_ui = (state.get("ag-ui") if isinstance(state, dict) else None) or {}
+    schema = ag_ui.get("a2ui_schema")
+    if schema:
+        return str(schema)
+
+    for entry in _context_entries(state):
+        if _description(entry).startswith("A2UI Component Schema"):
+            value = entry.get("value") if isinstance(entry, dict) else getattr(entry, "value", None)
+            if value:
+                return str(value)
+    return None
 
 
 RENDER_DATA_DESCRIPTION = (

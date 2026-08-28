@@ -390,3 +390,83 @@ def test_worker_tool_calls_still_stream():
     source = inspect.getsource(nodes._run_tool_loop)
     assert "config = quiet(config)" in source
     assert "quiet(config, tool_calls=False)" not in source
+
+
+# ------------------------------------------ A2UI reaches the browser at all
+
+
+def test_a2ui_is_detected_from_context_entries():
+    """`ag-ui.a2ui_schema` is never set in this architecture.
+
+    `ag_ui_langgraph`'s `split_a2ui_schema_context` lifts the component schema
+    into that key — but it only runs when PYTHON serves the AG-UI endpoint. We
+    use the Node `LangGraphAgent` against `langgraph dev`, so the schema arrives
+    as an ordinary context entry instead and the gate must look there.
+
+    Symptom when it didn't: `a2uiEnabled: true`, four A2UI context entries on
+    the wire, a `product_grid` surface ready to draw — and every answer silently
+    rendered as markdown.
+    """
+    from agent.a2ui import a2ui_is_available, a2ui_schema_from_state
+
+    browser_state = {
+        "ag-ui": {
+            "context": [
+                {"description": "A2UI catalog capabilities: available catalog IDs.", "value": "{}"},
+                {
+                    "description": (
+                        "A2UI Component Schema — available components for generating UI "
+                        "surfaces. Use these component names and properties when creating "
+                        "A2UI operations."
+                    ),
+                    "value": '{"Text": {}}',
+                },
+            ]
+        }
+    }
+    assert a2ui_is_available(browser_state) is True
+    assert a2ui_schema_from_state(browser_state) == '{"Text": {}}'
+
+    # Fallbacks for the Python-served path still work.
+    assert a2ui_is_available({"ag-ui": {"a2ui_schema": "<schema>"}}) is True
+    assert a2ui_is_available({"ag-ui": {"inject_a2ui_tool": True}}) is True
+
+    # And no browser means no surface.
+    assert a2ui_is_available({}) is False
+    assert a2ui_is_available({"ag-ui": {"context": [{"description": "Something else"}]}}) is False
+
+
+def test_a2ui_render_keeps_its_traced_config():
+    """The MCP tools detach callbacks; this one must NOT.
+
+    The A2UI middleware paints from the live tool-call stream, so detaching
+    callbacks here silences the surface completely — verified, surface count
+    drops to zero. The two tool invocations in this file need opposite
+    treatment, which is exactly the kind of thing a test should hold still.
+    """
+    import inspect
+
+    from agent import nodes
+
+    source = inspect.getsource(nodes._present_with_a2ui)
+    invoke = source[source.index("await tool.ainvoke(args") :][:120]
+    assert "config=config" in invoke
+    assert '"callbacks": []' not in invoke
+
+
+def test_a2ui_path_returns_only_the_prose():
+    """Tool plumbing must stay out of `messages`.
+
+    The middleware has already consumed the tool call and its result from the
+    live stream. Returning them as chat messages too puts an empty-content
+    assistant message in the closing snapshot, and the chat renders that instead
+    of the answer.
+    """
+    import inspect
+
+    from agent import nodes
+
+    source = inspect.getsource(nodes._present_with_a2ui)
+    tail = source[source.index("return {") :]
+    assert "AIMessage(content=prose" in tail
+    assert "ToolMessage" not in tail

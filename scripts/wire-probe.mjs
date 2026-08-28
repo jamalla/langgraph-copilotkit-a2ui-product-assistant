@@ -95,6 +95,15 @@ const TAP = [
   "              });",
   "            }",
   "            if (ev.type === 'TEXT_MESSAGE_START') rec.textMsgIds = (rec.textMsgIds||[]).concat([ev.messageId]);",
+  "            if (ev.type === 'STATE_SNAPSHOT' && ev.snapshot) {",
+  "              var ag = ev.snapshot['ag-ui'] || {};",
+  "              rec.agUi = { keys: Object.keys(ag),",
+  "                           hasSchema: !!ag.a2ui_schema,",
+  "                           injectFlag: ag.inject_a2ui_tool === undefined ? 'absent' : ag.inject_a2ui_tool,",
+  "                           contextCount: (ag.context || []).length };",
+  "              var sf = ev.snapshot.surface;",
+  "              if (sf) rec.surface = { kind: sf.kind, title: sf.title };",
+  "            }",
   "            if (ev.type === 'TOOL_CALL_START') rec.toolCalls = (rec.toolCalls||[]).concat([",
   "              { name: ev.toolCallName || null, id: ev.toolCallId || null, parent: ev.parentMessageId || null }]);",
   "            if (ev.type === 'TOOL_CALL_RESULT') rec.toolResults = (rec.toolResults||[]).concat([",
@@ -182,9 +191,10 @@ try {
       try {
         const b = JSON.parse(r.body);
         console.log(`     tools     : ${JSON.stringify((b.tools || []).map((t) => t.name))}`);
-        console.log(
-          `     context   : ${(b.context || []).map((c) => String(c.description || "").slice(0, 38)).join(" | ")}`,
-        );
+        console.log("     context   :");
+        (b.context || []).forEach(function (c, n) {
+          console.log("        [" + n + "] " + JSON.stringify(String(c.description || "")));
+        });
         console.log(`     forwarded : ${JSON.stringify(b.forwardedProps || {})}`);
       } catch {
         console.log(`     body      : ${String(r.body).slice(0, 200)}`);
@@ -201,6 +211,8 @@ try {
     for (const e of r.errors || []) console.log(`     RUN_ERROR : ${e}`);
     console.log(`     TEXT      : ${r.text ? r.text.slice(0, 400) : "(none)"}`);
     if (r.textMsgIds) console.log(`     text msgs : ${JSON.stringify(r.textMsgIds)}`);
+    if (r.agUi) console.log(`     ag-ui     : ${JSON.stringify(r.agUi)}`);
+    if (r.surface) console.log(`     surface   : ${JSON.stringify(r.surface)}`);
     if (r.toolCalls) console.log(`     toolCalls : ${JSON.stringify(r.toolCalls)}`);
     if (r.toolResults) console.log(`     toolResult: ${JSON.stringify(r.toolResults)}`);
     if (r.snapshot) {

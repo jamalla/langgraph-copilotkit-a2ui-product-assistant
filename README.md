@@ -53,7 +53,7 @@ the catalog file, your API key and all three ports before anything starts.
 | `pnpm setup` | install + sync + preflight, from a fresh clone |
 | `pnpm dev` | all three services, colour-prefixed |
 | `pnpm dev:web` / `dev:agent` / `dev:mcp` | one service at a time |
-| `pnpm check` | typecheck + all 52 tests |
+| `pnpm check` | typecheck + all 55 tests |
 | `pnpm smoke` | load the running app in headless Edge, fail on any console error |
 | `pnpm check:all` | `check` + `smoke` (needs `pnpm dev` running) |
 | `pnpm test:mcp` / `test:agent` | one suite |
@@ -181,6 +181,31 @@ catalog at all. `prompts.NO_WORK_MARKER` is shared by prompt and code so they ca
 `list_categories` also now returns `total_products` and `category_count`, so catalog-wide questions
 are answerable in one call instead of via a text search for the word "products" — which matches
 nothing and looks exactly like an empty catalog.
+
+### `ag-ui.a2ui_schema` is never set on the Node-adapter path
+
+Every A2UI guide says to read the component catalog from `state["ag-ui"]["a2ui_schema"]`, populated
+by `ag_ui_langgraph`'s `split_a2ui_schema_context`. That helper works — it matches the
+byte-identical description the browser sends. **It just never runs here.**
+
+It lives on the path where *Python* serves the AG-UI endpoint (`LangGraphAGUIAgent` + FastAPI). This
+project uses the Node `LangGraphAgent` talking to `langgraph dev` over the LangGraph Platform HTTP
+API, so the Python adapter is not in the request path at all. The schema still arrives — as an
+ordinary `ag-ui.context` entry alongside the catalog capabilities and the generation/design
+guidelines.
+
+Nothing about the miss was visible: `a2uiEnabled: true`, four A2UI context entries on the wire, a
+`product_grid` surface ready to draw, and a gate that silently stayed shut so every answer came back
+as markdown. Detect A2UI from the context entries (`a2ui_is_available` in
+[a2ui.py](apps/agent/src/agent/a2ui.py)), keeping the `a2ui_schema` / `inject_a2ui_tool` checks as
+fallbacks for the Python-served path.
+
+### The two tool invocations need OPPOSITE treatment
+
+- **MCP tools** → `config={"callbacks": []}`. Tracing them synthesises an id-less tool call that
+  blanks the answer (see below).
+- **`generate_a2ui`** → keep `config=config`. The A2UI middleware paints from the live tool-call
+  stream; detaching callbacks silences the surface entirely (verified — surface count drops to 0).
 
 ### A phantom tool call eats every answer
 

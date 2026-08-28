@@ -693,59 +693,59 @@ async def _present_with_a2ui(
     facts: str,
     question: str,
 ) -> dict[str, Any]:
-    """Render the surface through the dynamic A2UI subagent.
+    """Write the answer, then paint the surface.
 
-    Every message produced here is returned, not just the final prose. The
-    AIMessage carrying the tool call and the ToolMessage carrying the
-    `a2ui_operations` envelope both have to reach the AG-UI wire, because the
-    middleware paints from them. Returning only the text would give you a
-    perfectly reasonable-looking answer with no UI attached - and no error.
+    ## Order matters, and so does who decides
+
+    Earlier this bound `generate_a2ui` to the model and let it choose whether to
+    call it. Two problems with that:
+
+      * It spends an extra round trip re-deciding something the graph already
+        knows — we only get here when `surface.kind != "none"`.
+      * The tool call had to come first, so the prose was generated in the same
+        turn as the tool call. `ag_ui_langgraph` then synthesised an id-less
+        tool call from `on_tool_end`, the client reconstructed the assistant
+        message as `content: "", toolCalls: [...]`, and the bubble rendered
+        empty even though the surface painted perfectly.
+
+    So: generate the prose on its own (it streams and completes as a clean text
+    message), then invoke the renderer programmatically. Deterministic, one
+    fewer LLM call, and the non-determinism stays confined to layout — which is
+    exactly where dynamic A2UI is supposed to keep it.
     """
+    # 1. The answer. No tools bound, so nothing can pollute this message.
+    reply: AIMessage = await make_model().ainvoke(
+        [
+            SystemMessage(content=prompts.PRESENTER_A2UI),
+            HumanMessage(content=_presenter_brief(question, facts, "Write the answer.")),
+        ],
+        config=config,
+    )
+    prose = (reply.text or "").strip()
+
+    # 2. The surface. Keeps the traced config: the A2UI middleware paints from
+    #    the live tool-call stream, and detaching callbacks here silences it
+    #    entirely (verified — surface count drops to zero).
     tool = render_tool()
-    model = make_model().bind_tools([tool], parallel_tool_calls=False)
+    args: dict[str, Any] = {"intent": "create"}
+    if needs_runtime(tool):
+        args["runtime"] = build_tool_runtime(
+            # The subagent reads its data from state, not from any prompt above.
+            # Without this the surface is invented rather than rendered.
+            state=state_with_render_data(state, facts),
+            tool_call_id=f"a2ui-{reply.id}",
+            config=config,
+            tools=[tool],
+        )
 
-    conversation: list[BaseMessage] = [
-        SystemMessage(content=prompts.PRESENTER_A2UI),
-        HumanMessage(
-            content=_presenter_brief(question, facts, "Render this, then write the answer.")
-        ),
-    ]
+    try:
+        await tool.ainvoke(args, config=config)
+    except Exception:
+        # A broken surface must never cost the user their answer.
+        pass
 
-    produced: list[BaseMessage] = []
-    reply: AIMessage = await model.ainvoke(conversation, config=config)
-
-    if reply.tool_calls:
-        conversation.append(reply)
-        produced.append(reply)
-
-        for call in reply.tool_calls:
-            if call["name"] != A2UI_TOOL_NAME:
-                continue
-
-            args = dict(call["args"])
-            if needs_runtime(tool):
-                # LangGraph injects this inside a ToolNode; this graph runs its
-                # own loop, so we build it the way ToolNode._afunc does.
-                args["runtime"] = build_tool_runtime(
-                    # The subagent reads its data out of state, NOT out of the
-                    # prompt above. Without this the surface is invented.
-                    state=state_with_render_data(state, facts),
-                    tool_call_id=call["id"],
-                    config=config,
-                    tools=[tool],
-                )
-
-            try:
-                envelope = await tool.ainvoke(args, config=config)
-            except Exception as exc:  # a broken surface must not eat the answer
-                envelope = json.dumps({"error": f"{type(exc).__name__}: {exc}"})
-
-            message = ToolMessage(content=envelope, tool_call_id=call["id"])
-            conversation.append(message)
-            produced.append(message)
-
-        reply = await model.ainvoke(conversation, config=config)
-
-    # Same id-reuse rule as the markdown path.
-    produced.append(AIMessage(content=(reply.text or "").strip(), id=reply.id))
-    return {"messages": produced}
+    # Only the prose goes into `messages`. The surface lives on the wire as its
+    # own `a2ui-surface` activity message; adding the tool plumbing here would
+    # put an empty-content assistant message in the closing snapshot and the
+    # chat would render that instead of the answer.
+    return {"messages": [AIMessage(content=prose, id=reply.id)]}
