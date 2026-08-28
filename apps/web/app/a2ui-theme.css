@@ -51,3 +51,41 @@
   overflow-x: auto;
   max-width: 100%;
 }
+
+/* ===========================================================================
+   HARD-CODED COLOURS IN THE SHIPPED CATALOG
+   ---------------------------------------------------------------------------
+   The eight variables above cover most of the surface, but the basic catalog's
+   components also set some colours as INLINE STYLES, which no variable can
+   reach:
+
+     <small style="color: rgb(102, 102, 102)">   45 elements in a product grid
+     background: rgb(204, 204, 204)               dividers and placeholders
+
+   In light mode #666 merely looks slightly off. In dark mode the surface is
+   #161b22 and #666 text lands at roughly 2.5:1 contrast — measured, not
+   guessed — which is unreadable.
+
+   Inline styles can only be overridden with `!important`, and the attribute
+   substring selector is what lets us target them without knowing which
+   component emitted them. Ugly, and load-bearing.
+   =========================================================================== */
+
+.a2ui-surface small,
+.a2ui-surface [style*="rgb(102, 102, 102)"],
+.a2ui-surface [style*="#666"] {
+  color: var(--ink-muted) !important;
+}
+
+.a2ui-surface [style*="background-color: rgb(204, 204, 204)"],
+.a2ui-surface [style*="background: rgb(204, 204, 204)"],
+.a2ui-surface [style*="#ccc"] {
+  background-color: var(--surface-2) !important;
+}
+
+/* Anything the catalog leaves unstyled inherits the app's ink rather than the
+   browser default, so a new component type cannot silently arrive in black. */
+.a2ui-surface,
+.a2ui-surface * {
+  border-color: var(--line);
+}
