@@ -31,11 +31,25 @@ Rules:
 - When in doubt between catalog_agent and recommend_agent, ask whether the user wants a LIST
   (catalog) or a DECISION (recommend).
 
+SHARED SELECTION - this is the important one:
+The user is looking at a product grid. Whatever they have clicked arrives as "Products already
+under discussion". Treat that exactly as if they had named those products out loud.
+
+So "is this one good for gaming?" with a selection present is NOT ambiguous and you must not
+route it to catalog_agent to search again. If one product is selected, that is what "this",
+"it", "this one" and "that" refer to. If several are selected, "these" and "them" refer to
+that set, and "compare these" is compare_agent with no search needed.
+
+Only fall back to searching when the user names something the selection does not cover.
+
 Also produce `refined_query`: the user's request rewritten as 1-4 plain search terms with the
 filler removed, so the specialist does not have to re-parse the sentence. For "I'm after
 something quiet for long flights, nothing too pricey" that is "quiet noise cancelling".
 Leave it empty for presenter.
 """
+
+SELECTION_NOTE = """The user has these products selected in the app: {ids}
+They are looking at them right now. Pronouns like "this", "it" or "these" refer to them."""
 
 CATALOG = """You find products. You have search and lookup tools over a catalog of laptops,
 headphones, monitors and keyboards.

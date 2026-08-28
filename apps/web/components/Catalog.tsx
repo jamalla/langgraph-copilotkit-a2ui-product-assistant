@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CategoryFacet, Product } from "@/lib/types";
+import { useSharedSelection } from "@/lib/useSharedSelection";
 import { FilterBar, type Filters } from "./FilterBar";
 import { ProductGrid } from "./ProductGrid";
 import { ProductDetailSheet } from "./ProductDetailSheet";
@@ -44,7 +45,11 @@ export function Catalog({
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState<Product | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // Part 5: this used to be `useState<string[]>([])`. That is the entire change
+  // on the React side — one hook swap — because selection was always a single
+  // piece of state in a single place. Now the agent shares it.
+  const { selectedIds, select, intent, routeReason } = useSharedSelection("product_agent");
 
   const pristine = useRef(true);
 
@@ -88,10 +93,14 @@ export function Catalog({
     [],
   );
 
-  const onSelect = useCallback((product: Product) => {
-    setActive(product);
-    setSelectedIds([product.id]);
-  }, []);
+  const onSelect = useCallback(
+    (product: Product) => {
+      setActive(product);
+      // Writes through to the agent, so the next question can just say "this one".
+      select([product.id]);
+    },
+    [select],
+  );
 
   return (
     <>
@@ -103,6 +112,12 @@ export function Catalog({
         onChange={onChange}
         onReset={() => setFilters(defaults)}
       />
+
+      {routeReason && (
+        <p className="mb-3 text-xs text-ink-faint">
+          <span className="font-medium text-ink-muted">agent:</span> {intent} — {routeReason}
+        </p>
+      )}
 
       <ProductGrid
         products={products}

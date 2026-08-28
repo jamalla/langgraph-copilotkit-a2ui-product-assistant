@@ -2,6 +2,8 @@
 
 import { CopilotKitProvider, CopilotPopup } from "@copilotkit/react-core/v2";
 
+import { AgentBridge } from "@/components/AgentBridge";
+
 /**
  * Client-side CopilotKit wiring.
  *
@@ -13,6 +15,7 @@ import { CopilotKitProvider, CopilotPopup } from "@copilotkit/react-core/v2";
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <CopilotKitProvider runtimeUrl="/api/copilotkit">
+      <AgentBridge />
       {children}
       <CopilotPopup
         agentId="product_agent"

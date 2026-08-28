@@ -21,6 +21,8 @@ export function ProductCard({
       type="button"
       onClick={() => onSelect(product)}
       aria-pressed={selected}
+      // The frontend tool `highlight_product` finds cards by this attribute.
+      data-product-id={product.id}
       className={`group flex flex-col overflow-hidden rounded-card border bg-surface text-left shadow-card transition
         hover:-translate-y-0.5 hover:shadow-float
         ${selected ? "border-brand ring-2 ring-brand/35" : "border-line"}`}

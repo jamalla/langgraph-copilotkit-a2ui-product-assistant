@@ -215,3 +215,85 @@ def test_ag_ui_and_tools_are_declared_channels():
 
     assert "ag-ui" in AgentState.__annotations__
     assert "tools" in AgentState.__annotations__
+
+
+# ------------------------------------------------ Part 5: shared state + HITL
+
+
+def test_quiet_uses_the_key_ag_ui_langgraph_actually_reads():
+    """The two packages disagree, and the wrong key fails silently.
+
+    `copilotkit_customize_config` sets `copilotkit:emit-messages` (prefixed).
+    `ag_ui_langgraph` reads `emit-messages` (unprefixed). Using the former
+    type-checks, runs clean, and does nothing at all - the supervisor's routing
+    JSON and every worker's summary keep streaming into the chat.
+    """
+    from agent.nodes import quiet
+
+    out = quiet({"metadata": {"existing": 1}, "tags": ["keep-me"]})
+    assert out["metadata"]["emit-messages"] is False
+    assert "copilotkit:emit-messages" not in out["metadata"]
+    assert out["metadata"]["existing"] == 1, "must not clobber existing metadata"
+    assert out["tags"] == ["keep-me"], "must not drop the rest of the config"
+
+
+def test_quiet_handles_a_missing_config():
+    from agent.nodes import quiet
+
+    assert quiet(None)["metadata"]["emit-messages"] is False
+
+
+def test_quiet_does_not_mutate_the_caller_config():
+    from agent.nodes import quiet
+
+    original = {"metadata": {}}
+    quiet(original)
+    assert original["metadata"] == {}
+
+
+def test_only_write_tools_are_gated():
+    from agent.nodes import WRITE_TOOLS
+
+    assert WRITE_TOOLS == {"add_to_cart", "remove_from_cart"}
+    assert "view_cart" not in WRITE_TOOLS, "reads must never need confirmation"
+    assert "search_products" not in WRITE_TOOLS
+
+
+def test_confirmation_prompt_names_the_actual_action():
+    """The dialog has to say what will happen, not just 'are you sure?'."""
+    from agent.nodes import _describe_write
+
+    add = _describe_write({"name": "add_to_cart", "args": {"product_id": "hp-002", "quantity": 2}})
+    assert "hp-002" in add and "2 units" in add
+
+    one = _describe_write({"name": "add_to_cart", "args": {"product_id": "hp-002", "quantity": 1}})
+    assert "1 unit " in one, "singular, not '1 units'"
+
+    rm = _describe_write({"name": "remove_from_cart", "args": {"product_id": "kb-001"}})
+    assert "kb-001" in rm and "Remove" in rm
+
+
+def test_selection_note_is_omitted_when_nothing_is_selected():
+    """An empty selection must add no context at all.
+
+    Emitting "selected: none" teaches the model that a selection concept exists
+    and invites it to reason about the absence.
+    """
+    from agent.nodes import _selection_note
+
+    assert _selection_note({}) is None
+    assert _selection_note({"selected_product_ids": []}) is None
+
+    note = _selection_note({"selected_product_ids": ["hp-001", "hp-002"]})
+    assert note is not None
+    assert "hp-001" in note and "hp-002" in note
+
+
+def test_worker_context_merges_selection_with_router_hints():
+    from agent.nodes import _worker_context
+
+    ctx = _worker_context({"selected_product_ids": ["mn-004"]}, "Search terms: oled gaming")
+    assert "oled gaming" in ctx
+    assert "mn-004" in ctx
+
+    assert _worker_context({}, "") == ""

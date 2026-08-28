@@ -23,7 +23,7 @@ from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
-from langgraph.types import Command
+from langgraph.types import Command, interrupt
 from pydantic import BaseModel, Field
 
 from . import prompts
@@ -39,6 +39,32 @@ from .llm import make_model
 from .state import AgentState, SurfaceSpec, empty_turn
 from .tools import tools_for
 
+def quiet(config: RunnableConfig | None) -> RunnableConfig:
+    """Stop a node's model output from streaming into the chat.
+
+    Every model call inside the graph streams to the AG-UI wire by default. That
+    is right for the presenter and wrong for everyone else: the supervisor's
+    routing JSON and each worker's internal summary were being rendered in the
+    chat alongside the real answer. The user saw the same conclusion twice in
+    two different wordings, preceded by a raw
+    `{"next_agent": "recommend_agent", ...}` blob.
+
+    The knob is `metadata["emit-messages"]`, which `ag_ui_langgraph` checks per
+    event (agent.py: `should_emit_messages`).
+
+    Do NOT reach for `copilotkit.langgraph.copilotkit_customize_config` here.
+    It sets `metadata["copilotkit:emit-messages"]` - the PREFIXED key - which
+    `ag_ui_langgraph` never reads. The call type-checks, runs clean, and does
+    absolutely nothing. The two packages simply disagree about the key.
+
+    Tool calls keep streaming, so the UI still shows what the agent is doing.
+    Only the prose is silenced.
+    """
+    config = dict(config or {})
+    config["metadata"] = {**(config.get("metadata") or {}), "emit-messages": False}
+    return config  # type: ignore[return-value]
+
+
 MAX_TOOL_ITERATIONS = 4
 """How many times a worker may call tools before we stop it.
 
@@ -50,11 +76,39 @@ tool calls is looping, and looping quietly is worse than stopping loudly.
 # --------------------------------------------------------------------- helpers
 
 
+def _selection_note(state: AgentState) -> str | None:
+    """The browser's current selection, phrased for a worker's system prompt.
+
+    This is the READ half of shared state. The user clicks a card, the React app
+    writes `selected_product_ids` into agent state, and every worker sees it -
+    which is what lets "is this one good for gaming?" resolve without the user
+    naming anything.
+
+    Note what is NOT happening: the app is not stuffing a description of the
+    product into the prompt text. It shares STATE, and the agent reads it. The
+    value is always current, costs a handful of tokens, and survives context
+    compaction - none of which is true of text jammed into a system prompt.
+    """
+    ids = state.get("selected_product_ids") or []
+    if not ids:
+        return None
+    return prompts.SELECTION_NOTE.format(ids=", ".join(ids))
+
+
 def _last_user_text(messages: list[BaseMessage]) -> str:
     for message in reversed(messages):
         if isinstance(message, HumanMessage):
             return message.text or ""
     return ""
+
+
+def _worker_context(state: AgentState, *extra: str) -> str:
+    """Everything a worker should know before it starts, selection included."""
+    parts = [part for part in extra if part]
+    note = _selection_note(state)
+    if note:
+        parts.append(note)
+    return "\n\n".join(parts)
 
 
 def _conversation_tail(messages: list[BaseMessage], limit: int = 8) -> list[BaseMessage]:
@@ -114,6 +168,61 @@ def _to_message_content(result: Any) -> str:
     return json.dumps(result, default=str)
 
 
+def _confirm_write(call: dict[str, Any]) -> dict[str, Any]:
+    """Pause the graph and ask the human before performing a write.
+
+    `interrupt()` does something no ordinary `await` can: it SUSPENDS the graph
+    and writes the pending state to the checkpointer. The HTTP run finishes,
+    the browser renders a dialog, and the answer arrives later as a `Command`
+    that resumes execution from exactly this line. Between those two moments
+    nothing is held in memory - which is why the pause survives a page reload,
+    a lost connection, or a server restart.
+
+    That durability is the whole reason to use `interrupt()` here rather than
+    confirming in React before calling the tool. A dialog in the browser is a
+    promise the client has to keep; a checkpointed interrupt is a promise the
+    server keeps.
+
+    The dict below is what the frontend receives verbatim, so it carries
+    everything the dialog needs to explain the action. Whatever `resolve()`
+    sends back becomes this function's return value.
+    """
+    answer = interrupt(
+        {
+            "kind": "confirm_write",
+            "tool": call["name"],
+            "args": call["args"],
+            "summary": _describe_write(call),
+        }
+    )
+    if isinstance(answer, dict):
+        return answer
+    # A bare truthy/falsey resume is accepted too, so a minimal client works.
+    return {"approved": bool(answer)}
+
+
+def _describe_write(call: dict[str, Any]) -> str:
+    """One plain sentence for the confirmation dialog."""
+    args = call.get("args") or {}
+    product_id = args.get("product_id", "?")
+    if call["name"] == "add_to_cart":
+        quantity = args.get("quantity", 1)
+        unit = "unit" if quantity == 1 else "units"
+        return f"Add {quantity} {unit} of {product_id} to your cart?"
+    if call["name"] == "remove_from_cart":
+        return f"Remove {product_id} from your cart?"
+    return f"Run {call['name']}?"
+
+
+WRITE_TOOLS = frozenset({"add_to_cart", "remove_from_cart"})
+"""Tools that change state and therefore need a human to say yes.
+
+Derived from the same asymmetry the MCP server's docstrings describe: a read can
+be called speculatively and the worst case is wasted tokens; a write cannot be
+taken back. This is the enforcement of that rule, rather than a restatement of it.
+"""
+
+
 async def _run_tool_loop(
     *,
     worker: str,
@@ -121,6 +230,7 @@ async def _run_tool_loop(
     user_text: str,
     context: str | None = None,
     config: RunnableConfig | None = None,
+    confirm_before: frozenset[str] = frozenset(),
 ) -> tuple[str, list[tuple[str, Any]]]:
     """Run one worker to completion.
 
@@ -132,6 +242,9 @@ async def _run_tool_loop(
     tools = await tools_for(worker)
     model = make_model().bind_tools(tools)
     by_name = {t.name: t for t in tools}
+
+    # One turn, one answer: only the presenter speaks to the user.
+    config = quiet(config)
 
     messages: list[BaseMessage] = [SystemMessage(content=system)]
     if context:
@@ -157,6 +270,22 @@ async def _run_tool_loop(
                     )
                 )
                 continue
+            if call["name"] in confirm_before:
+                decision = _confirm_write(call)
+                if not decision.get("approved"):
+                    parsed = {
+                        "ok": False,
+                        "cancelled_by_user": True,
+                        "error": decision.get("reason") or "The user declined this action.",
+                    }
+                    messages.append(
+                        ToolMessage(
+                            content=_to_message_content(parsed), tool_call_id=call["id"]
+                        )
+                    )
+                    collected.append((call["name"], parsed))
+                    continue
+
             try:
                 result = await tool.ainvoke(call["args"], config=config)
             except Exception as exc:  # a failed tool is data, not a crash
@@ -262,7 +391,9 @@ async def supervisor(
                 )
             ),
         ],
-        config=config,
+        # Structured output is still a model call, so without this the routing
+        # JSON is streamed into the chat verbatim before the answer arrives.
+        config=quiet(config),
     )
 
     update: dict[str, Any] = {
@@ -286,7 +417,7 @@ async def catalog_agent(state: AgentState, config: RunnableConfig) -> dict[str, 
         worker="catalog_agent",
         system=prompts.CATALOG,
         user_text=_last_user_text(state["messages"]),
-        context=f"Search terms suggested by the router: {state.get('refined_query') or 'none'}",
+        context=_worker_context(state, f"Search terms suggested by the router: {state.get('refined_query') or 'none'}"),
         config=config,
     )
 
@@ -313,7 +444,7 @@ async def compare_agent(state: AgentState, config: RunnableConfig) -> dict[str, 
         worker="compare_agent",
         system=prompts.COMPARE,
         user_text=_last_user_text(state["messages"]),
-        context=f"Products already under discussion: {known or 'none identified yet'}",
+        context=_worker_context(state, f"Products already under discussion: {known or 'none identified yet'}"),
         config=config,
     )
 
@@ -340,7 +471,7 @@ async def recommend_agent(state: AgentState, config: RunnableConfig) -> dict[str
         worker="recommend_agent",
         system=prompts.RECOMMEND,
         user_text=_last_user_text(state["messages"]),
-        context=f"Search terms suggested by the router: {state.get('refined_query') or 'none'}",
+        context=_worker_context(state, f"Search terms suggested by the router: {state.get('refined_query') or 'none'}"),
         config=config,
     )
 
@@ -364,7 +495,10 @@ async def cart_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any
         worker="cart_agent",
         system=prompts.CART,
         user_text=_last_user_text(state["messages"]),
+        context=_worker_context(state),
         config=config,
+        # The only worker that can write is also the only one that pauses.
+        confirm_before=WRITE_TOOLS,
     )
 
     cart = _results_from(collected, "view_cart")
