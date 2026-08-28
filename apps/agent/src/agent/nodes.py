@@ -250,7 +250,9 @@ async def _run_tool_loop(
     model = make_model().bind_tools(tools)
     by_name = {t.name: t for t in tools}
 
-    # One turn, one answer: only the presenter speaks to the user.
+    # One turn, one answer: only the presenter's PROSE reaches the user.
+    # Tool calls stay visible — "searching the catalog…" is real progress, and
+    # with the fix below they now carry proper ids.
     config = quiet(config)
 
     messages: list[BaseMessage] = [SystemMessage(content=system)]
@@ -294,7 +296,27 @@ async def _run_tool_loop(
                     continue
 
             try:
-                result = await tool.ainvoke(call["args"], config=config)
+                # NOTE the missing `config=`. That omission is the fix.
+                #
+                # This node runs its own tool loop instead of using a ToolNode,
+                # so LangChain fires on_tool_start/on_tool_end callbacks that
+                # `ag_ui_langgraph` turns into AG-UI tool-call events — but with
+                # NO toolCallId and NO toolCallName, because the ids live in the
+                # ToolNode machinery we bypassed. That id-less, unpaired event
+                # corrupts the client's message reconstruction: CopilotKit ends
+                # up with `assistant(content: "", toolCalls: [...])`, drops the
+                # presenter's text, and poisons the thread so later runs lose
+                # earlier answers from their MESSAGES_SNAPSHOT too.
+                #
+                # Not passing the run config keeps the MCP call off the callback
+                # tree entirely, so no phantom event is synthesised. The model's
+                # own tool_calls still stream normally, with correct ids.
+                #
+                # Cost: these MCP calls no longer appear as child spans in
+                # LangSmith. The graph's own steps still do.
+                result = await tool.ainvoke(
+                    call["args"], config={"callbacks": []}
+                )
             except Exception as exc:  # a failed tool is data, not a crash
                 result = {"error": f"{type(exc).__name__}: {exc}"}
 

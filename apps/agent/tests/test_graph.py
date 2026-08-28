@@ -339,3 +339,54 @@ def test_supervisor_sends_catalog_questions_to_the_catalog_agent():
     assert "what do you sell" in body
     # And it must be told never to assert absence without checking.
     assert "you have not looked" in body
+
+
+# --------------------------- the phantom tool call that ate every answer
+
+
+def test_mcp_tools_are_invoked_with_callbacks_detached():
+    """The bug that made the chat render empty bubbles for any turn using a tool.
+
+    This graph runs its own tool loop instead of a ToolNode, so LangChain fires
+    on_tool_start/on_tool_end for each MCP call and `ag_ui_langgraph` turns them
+    into AG-UI tool-call events with NO toolCallId and NO toolCallName — the ids
+    live in the ToolNode machinery we bypassed.
+
+    That id-less, unpaired event corrupts the client's message reconstruction:
+    CopilotKit ends up with `assistant(content: "", toolCalls: [...])`, drops
+    the presenter's text, and poisons the thread so later runs lose earlier
+    answers from their snapshot too. Server-side everything looked perfect.
+
+    Passing an explicit empty `callbacks` list is what keeps the MCP call off
+    the callback tree. Note that omitting `config=` entirely is NOT enough —
+    LangChain picks the callback manager up from the ambient run context.
+    """
+    import inspect
+
+    from agent import nodes
+
+    source = inspect.getsource(nodes._run_tool_loop)
+    invoke = source[source.index("result = await tool.ainvoke") :][:200]
+
+    assert '"callbacks": []' in invoke, (
+        "MCP tools must be invoked with callbacks detached, or ag_ui_langgraph "
+        "synthesises an id-less tool call that breaks chat rendering"
+    )
+    assert "config=config" not in invoke, "the traced config must not be forwarded"
+
+
+def test_worker_tool_calls_still_stream():
+    """Suppressing them is not the fix, and actively makes things worse.
+
+    With `emit-tool-calls: False` the proper tool call disappears but the
+    synthesised on_tool_end event does NOT — leaving a lone id-less event and no
+    assistant bubble at all. Workers keep tool-call streaming so the UI can show
+    real progress; only the supervisor's is silenced.
+    """
+    import inspect
+
+    from agent import nodes
+
+    source = inspect.getsource(nodes._run_tool_loop)
+    assert "config = quiet(config)" in source
+    assert "quiet(config, tool_calls=False)" not in source

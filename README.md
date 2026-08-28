@@ -53,7 +53,7 @@ the catalog file, your API key and all three ports before anything starts.
 | `pnpm setup` | install + sync + preflight, from a fresh clone |
 | `pnpm dev` | all three services, colour-prefixed |
 | `pnpm dev:web` / `dev:agent` / `dev:mcp` | one service at a time |
-| `pnpm check` | typecheck + all 50 tests |
+| `pnpm check` | typecheck + all 52 tests |
 | `pnpm smoke` | load the running app in headless Edge, fail on any console error |
 | `pnpm check:all` | `check` + `smoke` (needs `pnpm dev` running) |
 | `pnpm test:mcp` / `test:agent` | one suite |
@@ -182,6 +182,33 @@ catalog at all. `prompts.NO_WORK_MARKER` is shared by prompt and code so they ca
 are answerable in one call instead of via a text search for the word "products" — which matches
 nothing and looks exactly like an empty catalog.
 
+### A phantom tool call eats every answer
+
+Any turn that used a tool rendered an **empty bubble**. The server was flawless: the browser
+received `TEXT_MESSAGE_START/CONTENT/END` and a final `MESSAGES_SNAPSHOT` holding the correct
+assistant message. CopilotKit still ended up with `assistant(content: "", toolCalls: [...])`.
+
+Cause: this graph runs its own tool loop rather than a `ToolNode`, so LangChain fires
+`on_tool_start`/`on_tool_end` for each MCP call and `ag_ui_langgraph` synthesises AG-UI tool-call
+events from them — with **no `toolCallId` and no `toolCallName`**, because the ids live in the
+ToolNode machinery being bypassed. That id-less, unpaired event corrupts the client's message
+reconstruction and takes the presenter's text with it. It also poisons the thread: later runs lose
+earlier answers from their snapshot.
+
+Fix — detach the MCP call from the callback tree:
+
+```python
+result = await tool.ainvoke(call["args"], config={"callbacks": []})
+```
+
+Two traps around it. Omitting `config=` entirely is **not** enough — LangChain picks the callback
+manager up from the ambient run context. And setting `emit-tool-calls: False` for workers makes it
+**worse**: the proper tool call disappears while the synthesised one survives, leaving no assistant
+bubble at all.
+
+Perfect correlation before the fix: 2 `TOOL_CALL_START`s (1 malformed) on tool turns which rendered
+nothing; 0 on chitchat turns, which rendered fine.
+
 ### Hooks silently default to an agent named `default`
 
 `useAgent`, `useInterrupt` and `useFrontendTool` fall back to the surrounding chat configuration and
@@ -221,6 +248,8 @@ free while the site is up.
 | Answer appears twice | worker prose streaming | `quiet(config)` on non-presenter model calls |
 | `Invalid thread ID: must be a UUID` | LangGraph requires UUID thread ids | use `uuid4()` |
 | 404 under `/api/copilotkit/…` | route is not a catch-all | `[[...rest]]/route.ts` |
+| Empty assistant bubble on any tool turn | id-less synthesised tool call | invoke MCP tools with `config={"callbacks": []}` |
+| `An internal error occurred` in chat | transient `OpenAIConnectionError` | retries raised to 4; retry the turn |
 | `Agent 'default' not found` | a hook outside the chat provider | pass `agentId: AGENT_ID` to it |
 | "No products were found" on a catalog-wide question | routed to presenter, nothing searched | supervisor must send it to `catalog_agent` |
 
