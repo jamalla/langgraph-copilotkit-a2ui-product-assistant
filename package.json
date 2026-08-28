@@ -1,0 +1,22 @@
+{
+  "name": "langgraph-copilotkit-react-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.28.1",
+  "description": "Polyglot monorepo: React product catalog + LangGraph multi-agent + CopilotKit runtime (A2UI) + MCP tool server",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n mcp,agent,web -c magenta,cyan,green \"pnpm dev:mcp\" \"pnpm dev:agent\" \"pnpm dev:web\"",
+    "dev:web": "pnpm --filter @app/web dev",
+    "dev:agent": "uv run --project apps/agent langgraph dev --host localhost --port 2024 --no-browser",
+    "dev:mcp": "uv run --project apps/mcp python -m mcp_products.server",
+    "build": "pnpm --filter @app/web build",
+    "setup:python": "uv sync --project apps/mcp && uv sync --project apps/agent",
+    "verify:data": "node -e \"const p=require('./data/products.json');console.log(p.length+' products across '+new Set(p.map(x=>x.category)).size+' categories')\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
