@@ -144,3 +144,74 @@ def test_only_the_cart_worker_can_write(worker):
 
 def test_cart_worker_can_write():
     assert {"add_to_cart", "remove_from_cart"} <= set(TOOLSETS["cart_agent"])
+
+
+# ------------------------------------------------------------------- A2UI
+
+
+def test_a2ui_gate_keys_off_the_inject_flag_not_the_schema():
+    """The gate that silently disabled generative UI for an afternoon.
+
+    `a2ui_schema` is contributed by the BROWSER's catalog and is absent whenever
+    the client does not send one - so gating on it fell back to markdown even
+    with A2UI fully configured and working. `inject_a2ui_tool` is the signal the
+    middleware actually forwards.
+    """
+    from agent.a2ui import a2ui_is_available
+
+    assert a2ui_is_available({"ag-ui": {"inject_a2ui_tool": True}}) is True
+    assert a2ui_is_available({"ag-ui": {"a2ui_schema": "<schema>"}}) is True
+    assert a2ui_is_available({"ag-ui": {"inject_a2ui_tool": False}}) is False
+    assert a2ui_is_available({}) is False
+    assert a2ui_is_available({"ag-ui": None}) is False
+
+
+def test_render_data_reaches_the_subagent_as_ag_ui_context():
+    """The bug that painted a product we do not sell.
+
+    The A2UI subagent builds its prompt from `ag-ui.context` and
+    `state["messages"]` - never from the presenter's prompt. Asked to render
+    products it had never been shown, it invented a Sony WH-1000XM4 at $349.99:
+    correct layout, accurate prose, fictional data, no error anywhere.
+    """
+    from agent.a2ui import RENDER_DATA_DESCRIPTION, state_with_render_data
+
+    facts = '{"products": [{"id": "hp-001", "name": "Aether NC 900"}]}'
+    out = state_with_render_data({"ag-ui": {"context": [{"description": "existing", "value": "x"}]}}, facts)
+
+    context = out["ag-ui"]["context"]
+    assert len(context) == 2, "must append, not replace existing context"
+    assert context[0]["description"] == "existing"
+    assert context[-1]["value"] == facts
+    assert context[-1]["description"] == RENDER_DATA_DESCRIPTION
+    assert "do not invent" in RENDER_DATA_DESCRIPTION.lower()
+
+
+def test_render_data_does_not_mutate_the_original_state():
+    from agent.a2ui import state_with_render_data
+
+    original = {"ag-ui": {"context": []}, "surface": {"kind": "product_grid"}}
+    out = state_with_render_data(original, "{}")
+
+    assert original["ag-ui"]["context"] == [], "original state was mutated"
+    assert out is not original
+    assert out["surface"] is original["surface"]
+
+
+def test_render_data_survives_missing_ag_ui():
+    from agent.a2ui import state_with_render_data
+
+    out = state_with_render_data({}, "{}")
+    assert len(out["ag-ui"]["context"]) == 1
+
+
+def test_ag_ui_and_tools_are_declared_channels():
+    """`ag_ui_langgraph` passes both as graph INPUT.
+
+    LangGraph silently drops input keys with no declared channel, so an
+    undeclared `ag-ui` means the agent never learns a browser is attached.
+    """
+    from agent.state import AgentState
+
+    assert "ag-ui" in AgentState.__annotations__
+    assert "tools" in AgentState.__annotations__

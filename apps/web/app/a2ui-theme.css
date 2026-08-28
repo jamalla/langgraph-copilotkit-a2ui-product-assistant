@@ -1,0 +1,53 @@
+/* ===========================================================================
+   A2UI SURFACE THEME
+   ---------------------------------------------------------------------------
+   This file is the payoff for the token discipline in Part 1.
+
+   The agent invents its component tree at runtime — we never wrote a
+   ProductCard for it. So how does agent-generated UI end up looking like the
+   app it lives in? Not through components: through CSS custom properties that
+   the A2UI renderer reads, scoped to `.a2ui-surface`.
+
+   The renderer exposes exactly eight. Every one of them is mapped to a token
+   already defined in globals.css, so the surface tracks the app's light/dark
+   theme automatically and there is not a single hard-coded colour below.
+
+   Scoping to `.a2ui-surface` means none of this leaks into the rest of the app.
+   =========================================================================== */
+
+.a2ui-surface {
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-ink);
+  --radius: 12px;
+
+  font-family: var(--font-sans);
+  color: var(--ink);
+}
+
+/* The chat column is narrow; an unconstrained generated image can blow out the
+   layout, and the model picks its own image URLs. */
+.a2ui-surface img {
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+/* Horizontal lists are how the subagent lays out comparisons. Give the cards a
+   floor so a three-way compare scrolls instead of crushing. */
+.a2ui-surface [class*="list"] > * {
+  min-width: 168px;
+}
+
+/* Generated tables and wide rows scroll inside the surface rather than pushing
+   the popup sideways. */
+.a2ui-surface table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}

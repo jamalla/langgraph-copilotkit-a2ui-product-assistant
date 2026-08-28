@@ -33,9 +33,35 @@ Each app is genuinely independent — no cross-imports, no shared build graph. T
 - [x] **Part 1** — React product catalog (standalone)
 - [x] **Part 2** — MCP tool server (standalone)
 - [x] **Part 3** — LangGraph multi-agent (standalone)
-- [ ] **Part 4** — CopilotKit runtime + A2UI
+- [x] **Part 4** — CopilotKit runtime + A2UI
 - [ ] **Part 5** — bidirectional state & frontend tools
 - [ ] **Part 6** — run everything, document, harden
+
+## Gotchas found the hard way
+
+**`langgraph dev` does not reliably hot-reload.** It logs "changes detected" constantly, but a
+changed **state schema** or a newly imported module can keep serving the old graph. Symptom: your
+edit has no effect and nothing errors. Check what is actually loaded:
+
+```bash
+AID=$(curl -s -X POST localhost:2024/assistants/search -H 'content-type: application/json'   -d '{"limit":1}' | python -c "import sys,json;print(json.load(sys.stdin)[0]['assistant_id'])")
+curl -s localhost:2024/assistants/$AID/schemas | python -m json.tool | head -30
+```
+
+If the properties do not match `AgentState`, restart the agent. Killing the port holder is not
+enough — it spawns a child:
+
+```bash
+pnpm dev:agent   # after stopping BOTH the listener and its child process
+```
+
+**`langgraph.json` must use the module form.** `"agent.graph:graph"`, never
+`"./src/agent/graph.py:graph"` — the file form loads the module standalone and every relative
+import dies with "attempted relative import with no known parent package".
+
+**The CopilotKit runtime route must be a catch-all.** `createCopilotEndpoint` returns a Hono app
+that registers several paths under `basePath`, so it lives at `app/api/copilotkit/[[...rest]]/`
+and is exported as `app.fetch`, not assigned directly to `POST`.
 
 ## Getting started
 

@@ -9,6 +9,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ag-ui/langgraph": "0.0.42",
+    "@copilotkit/react-core": "1.69.3",
+    "@copilotkit/runtime": "1.69.3",
     "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",

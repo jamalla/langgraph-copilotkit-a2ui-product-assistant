@@ -27,6 +27,14 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from . import prompts
+from .a2ui import (
+    A2UI_TOOL_NAME,
+    a2ui_is_available,
+    build_tool_runtime,
+    needs_runtime,
+    render_tool,
+    state_with_render_data,
+)
 from .llm import make_model
 from .state import AgentState, SurfaceSpec, empty_turn
 from .tools import tools_for
@@ -438,28 +446,115 @@ def _render_markdown(surface: SurfaceSpec | None) -> str:
 
 
 async def presenter(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
-    """Write the single message the user actually reads."""
+    """Write the single message the user reads - and, when a browser is
+    attached, render a live A2UI surface instead of a markdown table.
+
+    This is the ONLY node that changed in Part 4. Every worker still produces
+    the same `surface` dict it produced in Part 3; the difference is entirely in
+    how that dict is turned into something visible. That was the whole point of
+    giving the presenter its own node.
+
+    Two paths, chosen by whether a component catalog was actually offered:
+
+      browser attached  ->  bind `generate_a2ui`, let the model call it, and let
+                            a subagent design the component tree
+      no browser        ->  the Part 3 markdown renderer, unchanged
+
+    The fallback is not defensive padding. It is what keeps LangGraph Studio,
+    `curl` and the test suite usable for debugging the GRAPH without standing up
+    the entire frontend.
+    """
     surface = state.get("surface")
-    model = make_model()
-
+    has_content = bool(surface and surface.get("kind") != "none")
     facts = json.dumps(surface, default=str)[:6000] if surface else "no catalog work was done"
+    question = _last_user_text(state["messages"])
 
-    reply = await model.ainvoke(
+    if has_content and a2ui_is_available(state):
+        return await _present_with_a2ui(state, config, facts=facts, question=question)
+
+    reply = await make_model().ainvoke(
         [
             SystemMessage(content=prompts.PRESENTER),
-            HumanMessage(
-                content=(
-                    f"User asked: {_last_user_text(state['messages'])}\n\n"
-                    f"What was found (JSON):\n{facts}\n\n"
-                    "Write the answer."
-                )
-            ),
+            HumanMessage(content=_presenter_brief(question, facts, "Write the answer.")),
         ],
         config=config,
     )
 
     prose = (reply.text or "").strip()
     rendered = _render_markdown(surface)
-    content = f"{prose}\n\n{rendered}".strip() if rendered else prose
-
+    content = "\n\n".join(part for part in (prose, rendered) if part).strip()
     return {"messages": [AIMessage(content=content)]}
+
+
+def _presenter_brief(question: str, facts: str, instruction: str) -> str:
+    return "\n\n".join(
+        [
+            f"User asked: {question}",
+            f"What was found (JSON):\n{facts}",
+            instruction,
+        ]
+    )
+
+
+async def _present_with_a2ui(
+    state: AgentState,
+    config: RunnableConfig,
+    *,
+    facts: str,
+    question: str,
+) -> dict[str, Any]:
+    """Render the surface through the dynamic A2UI subagent.
+
+    Every message produced here is returned, not just the final prose. The
+    AIMessage carrying the tool call and the ToolMessage carrying the
+    `a2ui_operations` envelope both have to reach the AG-UI wire, because the
+    middleware paints from them. Returning only the text would give you a
+    perfectly reasonable-looking answer with no UI attached - and no error.
+    """
+    tool = render_tool()
+    model = make_model().bind_tools([tool], parallel_tool_calls=False)
+
+    conversation: list[BaseMessage] = [
+        SystemMessage(content=prompts.PRESENTER_A2UI),
+        HumanMessage(
+            content=_presenter_brief(question, facts, "Render this, then write the answer.")
+        ),
+    ]
+
+    produced: list[BaseMessage] = []
+    reply: AIMessage = await model.ainvoke(conversation, config=config)
+
+    if reply.tool_calls:
+        conversation.append(reply)
+        produced.append(reply)
+
+        for call in reply.tool_calls:
+            if call["name"] != A2UI_TOOL_NAME:
+                continue
+
+            args = dict(call["args"])
+            if needs_runtime(tool):
+                # LangGraph injects this inside a ToolNode; this graph runs its
+                # own loop, so we build it the way ToolNode._afunc does.
+                args["runtime"] = build_tool_runtime(
+                    # The subagent reads its data out of state, NOT out of the
+                    # prompt above. Without this the surface is invented.
+                    state=state_with_render_data(state, facts),
+                    tool_call_id=call["id"],
+                    config=config,
+                    tools=[tool],
+                )
+
+            try:
+                envelope = await tool.ainvoke(args, config=config)
+            except Exception as exc:  # a broken surface must not eat the answer
+                envelope = json.dumps({"error": f"{type(exc).__name__}: {exc}"})
+
+            message = ToolMessage(content=envelope, tool_call_id=call["id"])
+            conversation.append(message)
+            produced.append(message)
+
+        reply = await model.ainvoke(conversation, config=config)
+
+    produced.append(AIMessage(content=(reply.text or "").strip()))
+    return {"messages": produced}

@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
+import "@copilotkit/react-core/v2/styles.css";
 import "./globals.css";
+import "./a2ui-theme.css";
+
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "A2UI Product Assistant",
@@ -22,7 +26,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className="min-h-dvh bg-canvas text-ink antialiased">{children}</body>
+      <body className="min-h-dvh bg-canvas text-ink antialiased">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

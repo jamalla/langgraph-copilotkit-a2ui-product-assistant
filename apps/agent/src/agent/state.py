@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import Annotated, Any, Literal, TypedDict
 
 from copilotkit import CopilotKitState
+from typing_extensions import TypedDict as ExtTypedDict
 
 Intent = Literal["search", "compare", "recommend", "cart", "chitchat"]
 
@@ -49,7 +50,28 @@ def last_write_wins(current: Any, incoming: Any) -> Any:
     return incoming if incoming is not None else current
 
 
-class AgentState(CopilotKitState):
+# `ag-ui` is not a valid Python identifier, so this channel has to be declared
+# with the FUNCTIONAL TypedDict form. It must be `typing_extensions.TypedDict`
+# rather than `typing.TypedDict` - mixing the two raises a metaclass conflict
+# when combined with CopilotKitState.
+#
+# Declaring these matters: `ag_ui_langgraph` passes `ag-ui` and `tools` as graph
+# INPUT, and LangGraph silently drops input keys that have no channel. Without
+# them, `state["ag-ui"]["a2ui_schema"]` is never there and the A2UI subagent
+# designs surfaces against no catalog at all.
+AgUiChannels = ExtTypedDict(
+    "AgUiChannels",
+    {
+        # {"tools": [...], "context": [...], "a2ui_schema": ..., "inject_a2ui_tool": bool}
+        "ag-ui": Annotated[dict[str, Any] | None, last_write_wins],
+        # Frontend tools forwarded by the runtime. Used in Part 5.
+        "tools": Annotated[list[Any] | None, last_write_wins],
+    },
+    total=False,
+)
+
+
+class AgentState(CopilotKitState, AgUiChannels):
     """State for the product assistant graph."""
 
     # --- routing, set by the supervisor ---
