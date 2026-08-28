@@ -8,16 +8,19 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "concurrently -k -n mcp,agent,web -c magenta,cyan,green \"pnpm dev:mcp\" \"pnpm dev:agent\" \"pnpm dev:web\"",
+    "setup": "pnpm install && pnpm setup:python && node scripts/preflight.mjs",
+    "setup:python": "uv sync --directory apps/mcp --all-groups && uv sync --directory apps/agent --all-groups",
+    "preflight": "node scripts/preflight.mjs",
+    "dev": "node scripts/preflight.mjs && concurrently -k --kill-others-on-fail -n mcp,agent,web -c magenta,cyan,green \"pnpm dev:mcp\" \"pnpm dev:agent\" \"pnpm dev:web\"",
     "dev:web": "pnpm --filter @app/web dev",
     "dev:agent": "uv run --directory apps/agent langgraph dev --host localhost --port 2024 --no-browser",
     "dev:mcp": "uv run --directory apps/mcp python -m mcp_products.server",
     "build": "pnpm --filter @app/web build",
-    "setup:python": "uv sync --directory apps/mcp --all-groups && uv sync --directory apps/agent --all-groups",
-    "verify:data": "node -e \"const p=require('./data/products.json');console.log(p.length+' products across '+new Set(p.map(x=>x.category)).size+' categories')\"",
+    "typecheck": "pnpm --filter @app/web typecheck",
+    "test": "pnpm test:mcp && pnpm test:agent",
     "test:mcp": "uv run --directory apps/mcp pytest -q",
     "test:agent": "uv run --directory apps/agent pytest -q",
-    "test": "pnpm test:mcp && pnpm test:agent"
+    "check": "pnpm typecheck && pnpm test"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
