@@ -10,11 +10,14 @@
   "scripts": {
     "dev": "concurrently -k -n mcp,agent,web -c magenta,cyan,green \"pnpm dev:mcp\" \"pnpm dev:agent\" \"pnpm dev:web\"",
     "dev:web": "pnpm --filter @app/web dev",
-    "dev:agent": "uv run --project apps/agent langgraph dev --host localhost --port 2024 --no-browser",
-    "dev:mcp": "uv run --project apps/mcp python -m mcp_products.server",
+    "dev:agent": "uv run --directory apps/agent langgraph dev --host localhost --port 2024 --no-browser",
+    "dev:mcp": "uv run --directory apps/mcp python -m mcp_products.server",
     "build": "pnpm --filter @app/web build",
-    "setup:python": "uv sync --project apps/mcp && uv sync --project apps/agent",
-    "verify:data": "node -e \"const p=require('./data/products.json');console.log(p.length+' products across '+new Set(p.map(x=>x.category)).size+' categories')\""
+    "setup:python": "uv sync --directory apps/mcp --all-groups && uv sync --directory apps/agent --all-groups",
+    "verify:data": "node -e \"const p=require('./data/products.json');console.log(p.length+' products across '+new Set(p.map(x=>x.category)).size+' categories')\"",
+    "test:mcp": "uv run --directory apps/mcp pytest -q",
+    "test:agent": "uv run --directory apps/agent pytest -q",
+    "test": "pnpm test:mcp && pnpm test:agent"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

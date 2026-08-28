@@ -32,7 +32,7 @@ Each app is genuinely independent — no cross-imports, no shared build graph. T
 - [x] **Part 0** — monorepo skeleton & seed data
 - [x] **Part 1** — React product catalog (standalone)
 - [x] **Part 2** — MCP tool server (standalone)
-- [ ] **Part 3** — LangGraph multi-agent (standalone)
+- [x] **Part 3** — LangGraph multi-agent (standalone)
 - [ ] **Part 4** — CopilotKit runtime + A2UI
 - [ ] **Part 5** — bidirectional state & frontend tools
 - [ ] **Part 6** — run everything, document, harden

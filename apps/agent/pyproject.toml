@@ -1,0 +1,34 @@
+[project]
+name = "product-agent"
+version = "0.1.0"
+description = "LangGraph multi-agent that answers questions about the product catalog"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph>=1.2.0",
+    "langchain>=1.0.0",
+    "langchain-openai>=1.6.0",
+    "langchain-mcp-adapters>=0.3.2",
+    "copilotkit>=0.1.96",
+    "python-dotenv>=1.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "langgraph-cli[inmem]>=0.4.31",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent"]
+
+[tool.uv]
+package = true
