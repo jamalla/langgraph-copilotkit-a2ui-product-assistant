@@ -37,9 +37,16 @@ import { AGENT_ID, type SharedAgentState } from "./agent-state";
 export function useSharedSelection(agentId: string = AGENT_ID) {
   const { agent, isReady } = useAgent({
     agentId,
-    // Without this the hook does not re-render on state changes and the grid
-    // never reacts to anything the agent decides.
-    updates: [UseAgentUpdate.OnStateChanged],
+    // BOTH, and the second one is not optional.
+    //
+    // `updates` is not a per-hook filter — it configures the subscription for
+    // this agent. Subscribing with only OnStateChanged made this hook the one
+    // that set up the agent, and <CopilotPopup> then never received message
+    // notifications: the run completed, the correct assistant message arrived
+    // in the MESSAGES_SNAPSHOT, and the chat rendered an empty bubble.
+    //
+    // Nothing errored. The wire was perfect. Only the UI was wrong.
+    updates: [UseAgentUpdate.OnStateChanged, UseAgentUpdate.OnMessagesChanged],
   });
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

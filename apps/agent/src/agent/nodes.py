@@ -39,29 +39,36 @@ from .llm import make_model
 from .state import AgentState, SurfaceSpec, empty_turn
 from .tools import tools_for
 
-def quiet(config: RunnableConfig | None) -> RunnableConfig:
-    """Stop a node's model output from streaming into the chat.
+def quiet(config: RunnableConfig | None, *, tool_calls: bool = True) -> RunnableConfig:
+    """Stop a node's output from streaming into the chat.
 
-    Every model call inside the graph streams to the AG-UI wire by default. That
-    is right for the presenter and wrong for everyone else: the supervisor's
-    routing JSON and each worker's internal summary were being rendered in the
-    chat alongside the real answer. The user saw the same conclusion twice in
-    two different wordings, preceded by a raw
-    `{"next_agent": "recommend_agent", ...}` blob.
+    Every model call inside the graph streams to the AG-UI wire by default,
+    which is right for the presenter and wrong for everyone else.
 
-    The knob is `metadata["emit-messages"]`, which `ag_ui_langgraph` checks per
-    event (agent.py: `should_emit_messages`).
+    Two independent knobs, both read per event by `ag_ui_langgraph`
+    (agent.py: `should_emit_messages` / `should_emit_tool_calls`):
 
-    Do NOT reach for `copilotkit.langgraph.copilotkit_customize_config` here.
-    It sets `metadata["copilotkit:emit-messages"]` - the PREFIXED key - which
+      emit-messages    the model's prose
+      emit-tool-calls  the tool calls it makes
+
+    Workers keep `tool_calls=True`: seeing "searching the catalog…" is real
+    progress. The SUPERVISOR must pass `tool_calls=False`, and that is subtler
+    than it looks — `with_structured_output(Route)` is implemented AS A TOOL
+    CALL. Leave it visible and the client receives a tool call that never gets a
+    result, because nothing executes it; the chat then renders an assistant
+    bubble containing an orphan tool call and NO TEXT. The answer arrives
+    perfectly on the wire and the user sees an empty message.
+
+    Do NOT reach for `copilotkit.langgraph.copilotkit_customize_config` for any
+    of this. It sets the PREFIXED `copilotkit:emit-messages`, which
     `ag_ui_langgraph` never reads. The call type-checks, runs clean, and does
-    absolutely nothing. The two packages simply disagree about the key.
-
-    Tool calls keep streaming, so the UI still shows what the agent is doing.
-    Only the prose is silenced.
+    absolutely nothing.
     """
     config = dict(config or {})
-    config["metadata"] = {**(config.get("metadata") or {}), "emit-messages": False}
+    metadata = {**(config.get("metadata") or {}), "emit-messages": False}
+    if not tool_calls:
+        metadata["emit-tool-calls"] = False
+    config["metadata"] = metadata
     return config  # type: ignore[return-value]
 
 
@@ -372,7 +379,20 @@ async def supervisor(
     nothing to do with what actually runs.
     """
     messages = state["messages"]
-    model = make_model().with_structured_output(Route)
+    # `method="json_schema"` is load-bearing, not a style choice.
+    #
+    # The default implementation of structured output is FUNCTION CALLING, and
+    # `ag_ui_langgraph` streams that to the browser as a TOOL_CALL_START whose
+    # name, id and parent are all null - a malformed tool call that nothing can
+    # ever resolve. CopilotKit's chat then renders the assistant bubble as a
+    # pending tool call and shows NO TEXT, even though the answer arrived
+    # correctly and the final MESSAGES_SNAPSHOT holds it in full.
+    #
+    # No error, no console warning: a perfect run and an empty chat.
+    #
+    # `json_schema` uses OpenAI's response_format instead, so the routing
+    # decision never looks like a tool call.
+    model = make_model().with_structured_output(Route, method="json_schema")
 
     history = "\n".join(
         f"{'User' if isinstance(m, HumanMessage) else 'Assistant'}: {m.text or ''}"
@@ -391,9 +411,9 @@ async def supervisor(
                 )
             ),
         ],
-        # Structured output is still a model call, so without this the routing
-        # JSON is streamed into the chat verbatim before the answer arrives.
-        config=quiet(config),
+        # Structured output is a model call AND a tool call. Silence both, or
+        # the client gets an orphan tool call and renders an empty bubble.
+        config=quiet(config, tool_calls=False),
     )
 
     update: dict[str, Any] = {
@@ -622,7 +642,16 @@ async def presenter(state: AgentState, config: RunnableConfig) -> dict[str, Any]
     prose = (reply.text or "").strip()
     rendered = _render_markdown(surface)
     content = "\n\n".join(part for part in (prose, rendered) if part).strip()
-    return {"messages": [AIMessage(content=content)]}
+
+    # Reuse the STREAMED message's id.
+    #
+    # The model's tokens already reached the browser as TEXT_MESSAGE_* under
+    # `reply.id` (an `lc_run--...` id), and the chat is rendering a bubble keyed
+    # by it. Returning a freshly constructed AIMessage gives the same answer a
+    # SECOND identity, so the MESSAGES_SNAPSHOT never merges into the bubble the
+    # user is looking at: it stays empty while the correct text sits on the wire,
+    # in the snapshot, unrendered.
+    return {"messages": [AIMessage(content=content, id=reply.id)]}
 
 
 def _presenter_brief(question: str, facts: str, instruction: str) -> str:
@@ -695,5 +724,6 @@ async def _present_with_a2ui(
 
         reply = await model.ainvoke(conversation, config=config)
 
-    produced.append(AIMessage(content=(reply.text or "").strip()))
+    # Same id-reuse rule as the markdown path.
+    produced.append(AIMessage(content=(reply.text or "").strip(), id=reply.id))
     return {"messages": produced}
