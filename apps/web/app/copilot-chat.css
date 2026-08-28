@@ -44,15 +44,48 @@ div[class*="z-[1200]"] > * {
   max-height: none !important;
 }
 
+/* The chat body is the scroll BOUNDARY: it never scrolls itself, it just
+   allocates space. Only the message list scrolls, and only vertically.
+
+   Without `overflow: hidden` here the injected panels (tool list at the top,
+   pipeline explainer at the bottom) push the body past its own height and the
+   whole popup grows a second scrollbar — the outer one visible in the report,
+   scrolling the chrome rather than the conversation. */
 .copilotKitChat {
   height: 100% !important;
   min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Our injected panels take exactly the height they need and never shrink the
+   message list to nothing. `min-width: 0` is what stops a wide child (a long
+   JSON line in the pipeline panel) from widening the whole flex column, which
+   is where the horizontal scrollbar came from. */
+#a2ui-tools-slot,
+#a2ui-pipeline-slot {
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
 }
 
 .copilotKitMessages {
   flex: 1 1 auto !important;
   min-height: 0 !important;
+  min-width: 0 !important;
+  overflow-x: hidden !important;
   overflow-y: auto !important;
+}
+
+/* Nothing inside the chat may be wider than the chat. Long words, URLs and
+   generated spec strings wrap instead of forcing a horizontal scrollbar. */
+.copilotKitChat * {
+  max-width: 100%;
+}
+
+.copilotKitMessage {
+  min-width: 0 !important;
+  overflow-wrap: anywhere;
 }
 
 /* Wide generated content scrolls inside the surface instead of stretching the

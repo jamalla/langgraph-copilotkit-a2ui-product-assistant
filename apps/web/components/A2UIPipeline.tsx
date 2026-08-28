@@ -138,8 +138,28 @@ type TabKey = "source" | "tree" | "data" | "ops";
 
 export function A2UIPipeline() {
   const [state, setState] = useState<AgentStateWithTrace | null>(null);
+  const [hasSurface, setHasSurface] = useState(false);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabKey>("source");
+
+  /**
+   * Only explain a surface that is actually on screen.
+   *
+   * /api/a2ui-trace returns the most recent thread that rendered anything, which
+   * on a freshly opened chat is a PREVIOUS conversation. The panel then appeared
+   * above an empty thread claiming "32 components", explaining a surface the
+   * user had never seen.
+   *
+   * Tying it to a rendered `.a2ui-surface` makes the panel mean what it says:
+   * it is an annotation on something visible, so no surface means no panel.
+   */
+  useEffect(() => {
+    const check = () => setHasSurface(document.querySelectorAll(".a2ui-surface").length > 0);
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   /**
    * The trace is fetched from /api/a2ui-trace, which reads LangGraph directly.
@@ -179,7 +199,7 @@ export function A2UIPipeline() {
   }, []);
 
   const trace = state?.a2ui_trace;
-  if (!trace) return null;
+  if (!trace || !hasSurface) return null;
 
   // What the UI was generated FROM: the products the workers actually found.
   const source = state?.surface?.data?.products ?? state?.surface?.data ?? null;
