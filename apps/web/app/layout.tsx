@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import "@copilotkit/react-core/v2/styles.css";
 import "./globals.css";
 import "./a2ui-theme.css";
+import "./copilot-chat.css";
 
 import { Providers } from "./providers";
 

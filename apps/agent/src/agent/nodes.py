@@ -686,6 +686,33 @@ def _presenter_brief(question: str, facts: str, instruction: str) -> str:
     )
 
 
+def _read_a2ui_envelope(envelope: Any) -> dict[str, Any]:
+    """Pull the three A2UI operations apart for the pipeline panel.
+
+    The envelope is `{"a2ui_operations": [createSurface, updateComponents,
+    updateDataModel]}`. Splitting structure from data is the whole point of the
+    format — the component tree is authored once and the data streams into it —
+    so the panel shows them separately rather than as one JSON blob.
+    """
+    out: dict[str, Any] = {}
+    try:
+        payload = json.loads(envelope) if isinstance(envelope, str) else envelope
+        operations = (payload or {}).get("a2ui_operations") or []
+    except (TypeError, ValueError):
+        return {"error": "the renderer returned something that was not JSON"}
+
+    out["operations"] = operations
+    for op in operations:
+        if "createSurface" in op:
+            out["surface_id"] = op["createSurface"].get("surfaceId")
+            out["catalog_id"] = op["createSurface"].get("catalogId")
+        elif "updateComponents" in op:
+            out["components"] = op["updateComponents"].get("components")
+        elif "updateDataModel" in op:
+            out["data_model"] = op["updateDataModel"].get("value")
+    return out
+
+
 async def _present_with_a2ui(
     state: AgentState,
     config: RunnableConfig,
@@ -738,14 +765,29 @@ async def _present_with_a2ui(
             tools=[tool],
         )
 
+    trace: dict[str, Any] = {
+        "question": question,
+        "surface_kind": (state.get("surface") or {}).get("kind"),
+        "catalog_id": None,
+        "surface_id": None,
+        "components": None,
+        "data_model": None,
+        "operations": None,
+        "error": None,
+    }
+
     try:
-        await tool.ainvoke(args, config=config)
-    except Exception:
+        envelope = await tool.ainvoke(args, config=config)
+        trace.update(_read_a2ui_envelope(envelope))
+    except Exception as exc:
         # A broken surface must never cost the user their answer.
-        pass
+        trace["error"] = f"{type(exc).__name__}: {exc}"
 
     # Only the prose goes into `messages`. The surface lives on the wire as its
     # own `a2ui-surface` activity message; adding the tool plumbing here would
     # put an empty-content assistant message in the closing snapshot and the
     # chat would render that instead of the answer.
-    return {"messages": [AIMessage(content=prose, id=reply.id)]}
+    return {
+        "messages": [AIMessage(content=prose, id=reply.id)],
+        "a2ui_trace": trace,
+    }

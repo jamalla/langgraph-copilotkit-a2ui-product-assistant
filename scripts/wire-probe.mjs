@@ -101,6 +101,10 @@ const TAP = [
   "                           hasSchema: !!ag.a2ui_schema,",
   "                           injectFlag: ag.inject_a2ui_tool === undefined ? 'absent' : ag.inject_a2ui_tool,",
   "                           contextCount: (ag.context || []).length };",
+  "              var tr = ev.snapshot.a2ui_trace;",
+  "              if (tr) rec.trace = { components: (tr.components||[]).length,",
+  "                                    ops: (tr.operations||[]).length,",
+  "                                    surfaceId: tr.surface_id, error: tr.error };",
   "              var sf = ev.snapshot.surface;",
   "              if (sf) rec.surface = { kind: sf.kind, title: sf.title };",
   "            }",
@@ -213,6 +217,7 @@ try {
     if (r.textMsgIds) console.log(`     text msgs : ${JSON.stringify(r.textMsgIds)}`);
     if (r.agUi) console.log(`     ag-ui     : ${JSON.stringify(r.agUi)}`);
     if (r.surface) console.log(`     surface   : ${JSON.stringify(r.surface)}`);
+    console.log(`     a2ui_trace: ${r.trace ? JSON.stringify(r.trace) : "MISSING from state snapshots"}`);
     if (r.toolCalls) console.log(`     toolCalls : ${JSON.stringify(r.toolCalls)}`);
     if (r.toolResults) console.log(`     toolResult: ${JSON.stringify(r.toolResults)}`);
     if (r.snapshot) {

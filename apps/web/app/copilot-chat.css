@@ -1,0 +1,64 @@
+/* ===========================================================================
+   CHAT WINDOW SIZING
+   ---------------------------------------------------------------------------
+   CopilotKit ships the popup at a fixed 420x560, anchored bottom-right. A2UI
+   surfaces are wide — a comparison table in a 420px column is unreadable — so
+   the size is driven by CSS variables that ChatResizer.tsx writes onto :root.
+
+   The selector matches the popup's outer container by its Tailwind z-index
+   class. That is a substring match on a generated class name, which is fragile
+   by nature: if the chat stops resizing after a CopilotKit upgrade, run
+   `node scripts/dom-probe.mjs` and check what the container is called now.
+   =========================================================================== */
+
+:root {
+  --cpk-w: 420px;
+  --cpk-h: 560px;
+}
+
+div[class*="z-[1200]"] {
+  inset: auto 1.5rem 6rem auto !important;
+  width: var(--cpk-w) !important;
+  height: var(--cpk-h) !important;
+  max-width: 94vw !important;
+  max-height: 88vh !important;
+}
+
+/* The container growing is not enough: the popup itself is sized independently
+   and stays 420x560 inside a 900x860 parent. Force every layer between the
+   container and the message list to fill, then let the message list take the
+   remaining height. `min-height: 0` is what allows a flex child to shrink and
+   therefore to scroll — without it the list grows instead of scrolling. */
+div[class*="z-[1200]"] > * {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.copilotKitPopup,
+.copilotKitWindow {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.copilotKitChat {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.copilotKitMessages {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+}
+
+/* Wide generated content scrolls inside the surface instead of stretching the
+   window — the model picks its own layout and cannot know our column width. */
+.a2ui-surface table,
+.a2ui-surface [class*="row"] {
+  max-width: 100%;
+  overflow-x: auto;
+}

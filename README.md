@@ -182,6 +182,37 @@ catalog at all. `prompts.NO_WORK_MARKER` is shared by prompt and code so they ca
 are answerable in one call instead of via a text search for the word "products" — which matches
 nothing and looks exactly like an empty catalog.
 
+### `useAgent().agent.state` is empty in the browser
+
+The agent's state channels reach the client — `a2ui_trace` is plainly there in the `STATE_SNAPSHOT`
+events on the wire — but `Object.keys(agent.state)` is `[]`. Three documented extension points were
+tried before giving up on client state entirely:
+
+| Mechanism | Result |
+|---|---|
+| `useRenderTool({name: "*"})` | renders MCP tool calls fine, never fires for the A2UI call |
+| `renderCustomMessages` | provider prop for injecting UI into the message list; never ran |
+| `useAgent().agent.state` | `{}` |
+
+So the "How this UI was generated" panel reads
+[`/api/a2ui-trace`](apps/web/app/api/a2ui-trace/route.ts), which asks `langgraph dev` for the
+thread's state directly. `a2ui_trace` is an ordinary state channel, so one HTTP call gets it.
+
+Note this also means **Part 5's agent → grid direction is unverified.** Clicking a card writes
+selection to the agent (confirmed working); the agent writing selection back to the grid depends on
+the same empty `agent.state` and has not been demonstrated.
+
+### The chat window only scales its outer container
+
+Setting a size on the popup's outer container leaves `.copilotKitPopup` at its shipped 420×560
+inside a 900×860 parent. Every layer between the container and the message list needs forcing to
+fill, and `.copilotKitMessages` needs `min-height: 0` — without it a flex child grows instead of
+scrolling. See [copilot-chat.css](apps/web/app/copilot-chat.css).
+
+CSS `resize` only ever puts its grip in the bottom-right corner, which on a bottom-right-anchored
+panel drags the window off-screen — hence the custom top-left handle in
+[ChatResizer.tsx](apps/web/components/ChatResizer.tsx).
+
 ### `ag-ui.a2ui_schema` is never set on the Node-adapter path
 
 Every A2UI guide says to read the component catalog from `state["ag-ui"]["a2ui_schema"]`, populated

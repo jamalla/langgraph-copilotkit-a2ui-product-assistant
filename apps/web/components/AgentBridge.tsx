@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { z } from "zod";
 
-import { useFrontendTool, useInterrupt } from "@copilotkit/react-core/v2";
+import { useFrontendTool, useInterrupt, useRenderTool } from "@copilotkit/react-core/v2";
 
 import { AGENT_ID, findConfirmWrite } from "@/lib/agent-state";
 
@@ -113,6 +113,38 @@ export function AgentBridge() {
       product_id: z.string().describe("Product id such as hp-001."),
     }),
     handler: highlight,
+  });
+
+  /**
+   * 3. Tell the chat how to draw tool calls.
+   *
+   * Without a renderer CopilotKit falls back to dumping the raw call into the
+   * conversation: a bubble reading
+   * `generate_a2ui(intent="create", data={"kind":"product_grid", …})` with the
+   * entire payload inline, sitting between two empty text bubbles.
+   *
+   * A wildcard renderer replaces that with a quiet one-line chip. The A2UI
+   * tools render NOTHING — they paint their own surface, so announcing them
+   * would be captioning a picture the user is already looking at.
+   */
+  useRenderTool({
+    name: "*",
+    render: (props: { name?: string; status?: string }) => {
+      const name = props.name ?? "";
+      // The A2UI call paints its own surface, so announcing it would caption a
+      // picture the user is already looking at. The explanation of HOW that
+      // surface was built is attached separately, via `renderCustomMessages` in
+      // app/providers.tsx — this hook never fires for the A2UI call anyway.
+      if (name.includes("a2ui")) return <></>;
+
+      const done = props.status === "complete" || props.status === "executed";
+      return (
+        <div className="my-1 inline-flex items-center gap-2 rounded-pill border border-line bg-surface-2 px-2.5 py-1 text-[11px] text-ink-muted">
+          <span className={done ? "text-positive" : "text-ink-faint"}>{done ? "✓" : "⋯"}</span>
+          <span className="font-mono">{name || "working"}</span>
+        </div>
+      );
+    },
   });
 
   return null;

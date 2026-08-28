@@ -94,6 +94,15 @@ class AgentState(CopilotKitState, AgUiChannels):
     surface: Annotated[SurfaceSpec | None, last_write_wins]
     """The presenter's instructions. Becomes the A2UI data model in Part 4."""
 
+    a2ui_trace: Annotated[dict[str, Any] | None, last_write_wins]
+    """How the last surface was built, for the pipeline panel in the UI.
+
+    Purely explanatory: the agent never reads it. It exists so the browser can
+    show the four steps between "products found" and "UI on screen", which are
+    otherwise invisible — the interesting part of generative UI is exactly the
+    part that normally leaves no trace.
+    """
+
     # --- shared with the browser (Part 5 makes this bidirectional) ---
     selected_product_ids: Annotated[list[str] | None, last_write_wins]
     """Products under discussion. Written by the agent AND by clicks in the grid."""
@@ -115,4 +124,5 @@ def empty_turn() -> dict[str, Any]:
         "last_results": None,
         "comparison": None,
         "surface": None,
+        "a2ui_trace": None,
     }

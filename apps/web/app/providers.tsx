@@ -3,6 +3,8 @@
 import { CopilotKitProvider, CopilotPopup } from "@copilotkit/react-core/v2";
 
 import { AgentBridge } from "@/components/AgentBridge";
+import { ChatPipelineSlot } from "@/components/ChatPipelineSlot";
+import { ChatResizer } from "@/components/ChatResizer";
 import { AGENT_ID } from "@/lib/agent-state";
 
 /**
@@ -24,6 +26,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
           chatInputPlaceholder: "Ask about the catalog…",
         }}
       />
+      <ChatResizer />
+      <ChatPipelineSlot />
     </CopilotKitProvider>
   );
 }
