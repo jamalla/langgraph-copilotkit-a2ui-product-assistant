@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useAgent, UseAgentUpdate } from "@copilotkit/react-core/v2";
 
-import type { SharedAgentState } from "./agent-state";
+import { AGENT_ID, type SharedAgentState } from "./agent-state";
 
 /**
  * One selection, shared by the React grid and the LangGraph agent.
@@ -34,7 +34,7 @@ import type { SharedAgentState } from "./agent-state";
  * agent from a user gesture (`select`), never from an effect watching state.
  * The effect is strictly one-directional: agent state in, React state out.
  */
-export function useSharedSelection(agentId = "product_agent") {
+export function useSharedSelection(agentId: string = AGENT_ID) {
   const { agent, isReady } = useAgent({
     agentId,
     // Without this the hook does not re-render on state changes and the grid

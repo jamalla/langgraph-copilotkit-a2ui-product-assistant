@@ -49,7 +49,7 @@ export function Catalog({
   // Part 5: this used to be `useState<string[]>([])`. That is the entire change
   // on the React side — one hook swap — because selection was always a single
   // piece of state in a single place. Now the agent shares it.
-  const { selectedIds, select, intent, routeReason } = useSharedSelection("product_agent");
+  const { selectedIds, select, intent, routeReason } = useSharedSelection();
 
   const pristine = useRef(true);
 

@@ -3,6 +3,7 @@
 import { CopilotKitProvider, CopilotPopup } from "@copilotkit/react-core/v2";
 
 import { AgentBridge } from "@/components/AgentBridge";
+import { AGENT_ID } from "@/lib/agent-state";
 
 /**
  * Client-side CopilotKit wiring.
@@ -18,7 +19,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AgentBridge />
       {children}
       <CopilotPopup
-        agentId="product_agent"
+        agentId={AGENT_ID}
         labels={{
           chatInputPlaceholder: "Ask about the catalog…",
         }}

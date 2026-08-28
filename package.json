@@ -20,7 +20,9 @@
     "test": "pnpm test:mcp && pnpm test:agent",
     "test:mcp": "uv run --directory apps/mcp pytest -q",
     "test:agent": "uv run --directory apps/agent pytest -q",
-    "check": "pnpm typecheck && pnpm test"
+    "check": "pnpm typecheck && pnpm test",
+    "smoke": "node scripts/smoke-browser.mjs",
+    "check:all": "pnpm typecheck && pnpm test && pnpm smoke"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

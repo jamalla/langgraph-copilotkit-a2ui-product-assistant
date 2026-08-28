@@ -5,6 +5,8 @@ import {
   createCopilotEndpoint,
 } from "@copilotkit/runtime/v2";
 
+import { AGENT_ID } from "@/lib/agent-state";
+
 /**
  * The CopilotKit runtime.
  *
@@ -20,9 +22,10 @@ import {
 
 const runtime = new CopilotRuntime({
   agents: {
-    // The key is the agent name the browser asks for. `graphId` must match the
-    // key in apps/agent/langgraph.json.
-    product_agent: new LangGraphAgent({
+    // The key is the agent name the browser asks for, so it must equal AGENT_ID
+    // — every hook on the client resolves against this map by name. `graphId`
+    // is a separate thing: the key in apps/agent/langgraph.json.
+    [AGENT_ID]: new LangGraphAgent({
       deploymentUrl: process.env.LANGGRAPH_DEPLOYMENT_URL ?? "http://localhost:2024",
       graphId: process.env.LANGGRAPH_GRAPH_ID ?? "product_agent",
     }),

@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { useFrontendTool, useInterrupt } from "@copilotkit/react-core/v2";
 
-import { findConfirmWrite } from "@/lib/agent-state";
+import { AGENT_ID, findConfirmWrite } from "@/lib/agent-state";
 
 /**
  * The two places the agent reaches into the browser.
@@ -28,6 +28,9 @@ export function AgentBridge() {
    * lose it. That is the property a confirm dialog in React cannot give you.
    */
   useInterrupt({
+    // Required. This component sits outside <CopilotPopup>, so there is no chat
+    // configuration to inherit from and the hook would ask for "default".
+    agentId: AGENT_ID,
     enabled: (event) => findConfirmWrite(event) !== null,
     render: ({ event, interrupt, resolve, cancel }) => {
       const payload = findConfirmWrite(event, interrupt);
@@ -100,6 +103,7 @@ export function AgentBridge() {
   }, []);
 
   useFrontendTool({
+    agentId: AGENT_ID,
     name: "highlight_product",
     description:
       "Scroll one product card into view in the catalog behind the chat and flash it. " +

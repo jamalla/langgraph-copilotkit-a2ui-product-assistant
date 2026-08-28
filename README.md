@@ -54,6 +54,8 @@ the catalog file, your API key and all three ports before anything starts.
 | `pnpm dev` | all three services, colour-prefixed |
 | `pnpm dev:web` / `dev:agent` / `dev:mcp` | one service at a time |
 | `pnpm check` | typecheck + all 45 tests |
+| `pnpm smoke` | load the running app in headless Edge, fail on any console error |
+| `pnpm check:all` | `check` + `smoke` (needs `pnpm dev` running) |
 | `pnpm test:mcp` / `test:agent` | one suite |
 | `pnpm preflight` | environment check on its own |
 | `pnpm build` | production build of the web app |
@@ -163,6 +165,25 @@ package"*.
 lives at `app/api/copilotkit/[[...rest]]/route.ts` and is exported as `app.fetch` — assigning the
 app directly to `POST` fails Next's `RouteHandlerConfig`.
 
+### Hooks silently default to an agent named `default`
+
+`useAgent`, `useInterrupt` and `useFrontendTool` fall back to the surrounding chat configuration and
+then to a literal `"default"`. A component mounted **outside** `<CopilotPopup>` has no chat
+configuration, so it asks for an agent that does not exist:
+
+```
+useAgent: Agent 'default' not found after runtime sync. Known agents: [product_agent]
+```
+
+Pass `agentId` explicitly to every hook. `AGENT_ID` in
+[lib/agent-state.ts](apps/web/lib/agent-state.ts) is the single source of truth, used by the
+runtime's `agents` map, the chat component and all three hooks.
+
+**Nothing in this repo caught it.** `tsc` was clean, 45 tests passed, and driving the runtime with
+`curl` produced a perfect A2UI surface — because none of those ever mount React.
+[`pnpm smoke`](scripts/smoke-browser.mjs) exists for exactly this class of bug: it loads the app in
+headless Edge and fails on any console error.
+
 ### Ports: probe by connecting, not by binding
 
 `next dev` binds dual-stack on `::`. Trying to bind `127.0.0.1` succeeds anyway and reports the port
@@ -183,6 +204,7 @@ free while the site is up.
 | Answer appears twice | worker prose streaming | `quiet(config)` on non-presenter model calls |
 | `Invalid thread ID: must be a UUID` | LangGraph requires UUID thread ids | use `uuid4()` |
 | 404 under `/api/copilotkit/…` | route is not a catch-all | `[[...rest]]/route.ts` |
+| `Agent 'default' not found` | a hook outside the chat provider | pass `agentId: AGENT_ID` to it |
 
 ---
 
