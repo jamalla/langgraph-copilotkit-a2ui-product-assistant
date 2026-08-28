@@ -53,7 +53,7 @@ the catalog file, your API key and all three ports before anything starts.
 | `pnpm setup` | install + sync + preflight, from a fresh clone |
 | `pnpm dev` | all three services, colour-prefixed |
 | `pnpm dev:web` / `dev:agent` / `dev:mcp` | one service at a time |
-| `pnpm check` | typecheck + all 45 tests |
+| `pnpm check` | typecheck + all 50 tests |
 | `pnpm smoke` | load the running app in headless Edge, fail on any console error |
 | `pnpm check:all` | `check` + `smoke` (needs `pnpm dev` running) |
 | `pnpm test:mcp` / `test:agent` | one suite |
@@ -165,6 +165,23 @@ package"*.
 lives at `app/api/copilotkit/[[...rest]]/route.ts` and is exported as `app.fetch` — assigning the
 app directly to `POST` fails Next's `RouteHandlerConfig`.
 
+### "Nothing was found" is not "nothing was looked up"
+
+Asked *"how many products do I have"*, the supervisor routed straight to the presenter — no tools,
+no search — and the presenter replied **"No products were found in your catalog."** Nobody had
+looked. That is a false statement about the user's own data, and it is the same confabulation
+family as the invented Sony product.
+
+Two halves to the fix: the supervisor now sends any question needing catalog data to
+`catalog_agent` ("when unsure, choose catalog_agent — looking and finding nothing is recoverable,
+asserting an answer without looking is not"), and the presenter is told explicitly that the
+`no catalog work was done` marker means it knows nothing either way and must not describe the
+catalog at all. `prompts.NO_WORK_MARKER` is shared by prompt and code so they cannot drift.
+
+`list_categories` also now returns `total_products` and `category_count`, so catalog-wide questions
+are answerable in one call instead of via a text search for the word "products" — which matches
+nothing and looks exactly like an empty catalog.
+
 ### Hooks silently default to an agent named `default`
 
 `useAgent`, `useInterrupt` and `useFrontendTool` fall back to the surrounding chat configuration and
@@ -205,6 +222,7 @@ free while the site is up.
 | `Invalid thread ID: must be a UUID` | LangGraph requires UUID thread ids | use `uuid4()` |
 | 404 under `/api/copilotkit/…` | route is not a catch-all | `[[...rest]]/route.ts` |
 | `Agent 'default' not found` | a hook outside the chat provider | pass `agentId: AGENT_ID` to it |
+| "No products were found" on a catalog-wide question | routed to presenter, nothing searched | supervisor must send it to `catalog_agent` |
 
 ---
 

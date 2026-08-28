@@ -600,7 +600,12 @@ async def presenter(state: AgentState, config: RunnableConfig) -> dict[str, Any]
     """
     surface = state.get("surface")
     has_content = bool(surface and surface.get("kind") != "none")
-    facts = json.dumps(surface, default=str)[:6000] if surface else "no catalog work was done"
+    # The exact marker the PRESENTER prompt keys off to distinguish "we looked
+    # and found nothing" from "we never looked". Shared constant so the two
+    # cannot drift apart.
+    facts = (
+        json.dumps(surface, default=str)[:6000] if surface else prompts.NO_WORK_MARKER
+    )
     question = _last_user_text(state["messages"])
 
     if has_content and a2ui_is_available(state):

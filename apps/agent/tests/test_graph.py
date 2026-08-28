@@ -297,3 +297,45 @@ def test_worker_context_merges_selection_with_router_hints():
     assert "mn-004" in ctx
 
     assert _worker_context({}, "") == ""
+
+
+# ------------------------------------- not looking is not the same as finding nothing
+
+
+def test_presenter_marker_is_shared_between_prompt_and_code():
+    """The prompt keys off this exact string; drift would silently disarm it."""
+    import inspect
+
+    from agent import nodes, prompts
+
+    assert prompts.NO_WORK_MARKER in prompts.PRESENTER
+    source = inspect.getsource(nodes.presenter)
+    assert "prompts.NO_WORK_MARKER" in source
+    assert '"no catalog work was done"' not in source, "must not hard-code the marker"
+
+
+def test_presenter_is_forbidden_from_claiming_an_empty_catalog():
+    """The bug: asked "how many products do I have", the supervisor routed
+    straight to the presenter, nothing was searched, and the presenter replied
+    "No products were found in your catalog."
+
+    Nobody had looked. That is a false statement about the user's own data, and
+    it is the same confabulation family as the invented Sony product.
+    """
+    from agent import prompts
+
+    body = " ".join(prompts.PRESENTER.lower().split())
+    assert "no search ran" in body
+    assert "must not say the catalog is empty" in body
+
+
+def test_supervisor_sends_catalog_questions_to_the_catalog_agent():
+    from agent import prompts
+
+    # Collapse the prompt's hand-wrapping so assertions match meaning, not
+    # line breaks - otherwise a harmless re-wrap fails the test.
+    body = " ".join(prompts.SUPERVISOR.lower().split())
+    assert "how many products do i have" in body
+    assert "what do you sell" in body
+    # And it must be told never to assert absence without checking.
+    assert "you have not looked" in body

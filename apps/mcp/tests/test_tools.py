@@ -149,3 +149,25 @@ async def test_cart_roundtrip(client):
 async def test_unknown_id_returns_error_not_exception(client, tool):
     result = await call(client, tool, product_id="does-not-exist")
     assert "error" in result
+
+
+# ---------------------------------------------------------- catalog overview
+
+
+async def test_list_categories_reports_the_whole_catalog(client):
+    """"How many products do I have" must be answerable in one call.
+
+    Without a total, the model reaches for `search_products` with a query like
+    "products", which matches nothing and is indistinguishable from an empty
+    catalog.
+    """
+    data = await call(client, "list_categories")
+    assert data["total_products"] == 30
+    assert data["category_count"] == 4
+    assert sum(c["count"] for c in data["categories"]) == data["total_products"]
+
+
+async def test_list_categories_carries_price_ranges(client):
+    data = await call(client, "list_categories")
+    monitors = next(c for c in data["categories"] if c["category"] == "monitors")
+    assert monitors["price_range"] == {"min": 179, "max": 1499}

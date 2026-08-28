@@ -177,15 +177,26 @@ def compare_products(
 
 @mcp.tool
 def list_categories() -> dict[str, Any]:
-    """List every category with product count, price range, brands and tags.
+    """Summarise the whole catalog: total size, and every category with its
+    product count, price range, brands and common tags.
 
-    Use this to orient yourself before searching - it is the cheapest way to
-    learn what the catalog actually contains and what a realistic budget looks
-    like in each category.
+    This is the RIGHT TOOL for any question about what the catalog contains as a
+    whole - "how many products do I have", "what do you sell", "what categories
+    are there", "what is the price range". Do not try to answer those with
+    `search_products`: a text search for a word like "products" matches nothing
+    and looks identical to an empty catalog.
 
-    Returns {categories[]}.
+    It is also the cheapest way to orient yourself before searching, because it
+    shows what a realistic budget looks like in each category.
+
+    Returns {total_products, category_count, categories[]}.
     """
-    return {"categories": catalog.categories()}
+    cats = catalog.categories()
+    return {
+        "total_products": catalog.total_count(),
+        "category_count": len(cats),
+        "categories": cats,
+    }
 
 
 @mcp.tool

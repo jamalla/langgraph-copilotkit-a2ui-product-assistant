@@ -188,6 +188,11 @@ def search(
     return [p for _, _, p in scored[: max(1, limit)]]
 
 
+def total_count() -> int:
+    """How many products exist at all."""
+    return len(load_products())
+
+
 def categories() -> list[dict[str, Any]]:
     buckets: dict[str, list[Product]] = {}
     for p in load_products():
