@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+/* ===========================================================================
+   DESIGN TOKENS
+   ---------------------------------------------------------------------------
+   This is the contract between hand-written React (Part 1) and agent-generated
+   A2UI surfaces (Part 4).  The A2UI renderers consume these exact utilities, so
+   a card the agent invents at runtime is visually indistinguishable from a card
+   we wrote by hand.  Change a value here and BOTH change together.
+
+   Rule: never hard-code a colour in a component. Always go through a token.
+   =========================================================================== */
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-positive: var(--positive);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --radius-card: 14px;
+  --radius-control: 9px;
+  --radius-pill: 999px;
+
+  --shadow-card: var(--shadow-card-v);
+  --shadow-float: var(--shadow-float-v);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ---- light (default) ---- */
+:root {
+  --canvas: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --line: #e3e6ea;
+  --line-strong: #c9cfd6;
+  --ink: #14181d;
+  --ink-muted: #5b6470;
+  --ink-faint: #8b95a1;
+  --brand: #4f46e5;
+  --brand-ink: #ffffff;
+  --positive: #15803d;
+  --warning: #b45309;
+  --danger: #b91c1c;
+  --shadow-card-v: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-float-v: 0 12px 32px rgb(16 24 40 / 0.14), 0 2px 8px rgb(16 24 40 / 0.08);
+  color-scheme: light;
+}
+
+/* ---- dark: system preference, unless explicitly overridden to light ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas: #0d1014;
+    --surface: #161b22;
+    --surface-2: #1e242c;
+    --line: #2a313a;
+    --line-strong: #3d4650;
+    --ink: #e9edf2;
+    --ink-muted: #9aa5b1;
+    --ink-faint: #6b7684;
+    --brand: #818cf8;
+    --brand-ink: #12151a;
+    --positive: #4ade80;
+    --warning: #fbbf24;
+    --danger: #f87171;
+    --shadow-card-v: 0 1px 2px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.35);
+    --shadow-float-v: 0 12px 32px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.4);
+    color-scheme: dark;
+  }
+}
+
+/* ---- dark: explicit toggle wins in both directions ---- */
+:root[data-theme="dark"] {
+  --canvas: #0d1014;
+  --surface: #161b22;
+  --surface-2: #1e242c;
+  --line: #2a313a;
+  --line-strong: #3d4650;
+  --ink: #e9edf2;
+  --ink-muted: #9aa5b1;
+  --ink-faint: #6b7684;
+  --brand: #818cf8;
+  --brand-ink: #12151a;
+  --positive: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --shadow-card-v: 0 1px 2px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.35);
+  --shadow-float-v: 0 12px 32px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.4);
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@keyframes a2ui-slide-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

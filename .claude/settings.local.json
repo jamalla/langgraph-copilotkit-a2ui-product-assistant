@@ -3,7 +3,12 @@
     "allow": [
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git -c user.email=\"to.jamz@gmail.com\" -c user.name=\"to.jamz\" commit -q -m \"Part 0: monorepo skeleton and seed catalog\")"
+      "Bash(git -c user.email=\"to.jamz@gmail.com\" -c user.name=\"to.jamz\" commit -q -m \"Part 0: monorepo skeleton and seed catalog\")",
+      "Bash(pnpm install *)",
+      "Bash(pnpm verify:data)",
+      "Bash(ls \"C:/Users/User/.claude/projects/d--00-DS-ML-Workspace-langgraph-copilotkit-react-mono-repo/memory/\" 2>&1; echo \"---\"; cat \"C:/Users/User/.claude/projects/d--00-DS-ML-Workspace-langgraph-copilotkit-react-mono-repo/memory/MEMORY.md\" 2>&1)",
+      "Read(//c/Users/User/.claude/projects/d--00-DS-ML-Workspace-langgraph-copilotkit-react-mono-repo/memory/**)",
+      "Bash(npm view *)"
     ]
   }
 }

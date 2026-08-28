@@ -30,7 +30,7 @@ Each app is genuinely independent — no cross-imports, no shared build graph. T
 ## Build status
 
 - [x] **Part 0** — monorepo skeleton & seed data
-- [ ] **Part 1** — React product catalog (standalone)
+- [x] **Part 1** — React product catalog (standalone)
 - [ ] **Part 2** — MCP tool server (standalone)
 - [ ] **Part 3** — LangGraph multi-agent (standalone)
 - [ ] **Part 4** — CopilotKit runtime + A2UI
