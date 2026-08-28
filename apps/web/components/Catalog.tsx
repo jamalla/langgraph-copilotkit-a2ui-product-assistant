@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CategoryFacet, Product } from "@/lib/types";
-import { useSharedSelection } from "@/lib/useSharedSelection";
+import { useSharedSelection } from "@a2ui/kit";
 import { FilterBar, type Filters } from "./FilterBar";
 import { ProductGrid } from "./ProductGrid";
 import { ProductDetailSheet } from "./ProductDetailSheet";

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useA2UIKitConfig } from "../config";
+
 /**
  * Shows how the A2UI surface above it was built, inline in the chat.
  *
@@ -141,6 +143,7 @@ export function A2UIPipeline() {
   const [hasSurface, setHasSurface] = useState(false);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabKey>("source");
+  const { traceEndpoint, tracePollMs } = useA2UIKitConfig();
 
   /**
    * Only explain a surface that is actually on screen.
@@ -177,7 +180,7 @@ export function A2UIPipeline() {
 
     const load = async () => {
       try {
-        const res = await fetch("/api/a2ui-trace", { cache: "no-store" });
+        const res = await fetch(traceEndpoint, { cache: "no-store" });
         const data = (await res.json()) as { trace?: A2UITrace; surface?: unknown };
         if (!alive) return;
         setState(
@@ -191,12 +194,12 @@ export function A2UIPipeline() {
     };
 
     void load();
-    const timer = setInterval(load, 3000);
+    const timer = setInterval(load, tracePollMs);
     return () => {
       alive = false;
       clearInterval(timer);
     };
-  }, []);
+  }, [traceEndpoint, tracePollMs]);
 
   const trace = state?.a2ui_trace;
   if (!trace || !hasSurface) return null;

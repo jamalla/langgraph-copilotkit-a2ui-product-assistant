@@ -16,7 +16,8 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@a2ui/kit": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",

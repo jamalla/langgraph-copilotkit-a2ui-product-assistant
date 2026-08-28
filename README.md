@@ -20,11 +20,26 @@ Browser ────────────────────────
 | Path | What it is | Toolchain | Port |
 |---|---|---|---|
 | [apps/web](apps/web/) | React catalog + CopilotKit runtime | pnpm · Next.js 16 | 3000 |
+| [packages/a2ui-kit](packages/a2ui-kit/) | The generative-UI layer, reusable | pnpm · source-only | — |
 | [apps/agent](apps/agent/) | LangGraph supervisor multi-agent | uv · Python 3.11 | 2024 |
 | [apps/mcp](apps/mcp/) | MCP product-catalog tool server | uv · Python 3.11 | 8931 |
 | [data/products.json](data/products.json) | 30 seeded products | — | — |
 
-No cross-imports, no shared build graph. They talk over HTTP.
+No cross-imports between the three services — they talk over HTTP. The one shared library is
+`@a2ui/kit`, which holds everything about **how an agent's UI reaches a browser** and nothing about
+products: the chat shell, resizing, the tool list, the A2UI theme, the pipeline explainer, and write
+confirmation. A second app gets that whole layer from one import, and the CopilotKit-version-fragile
+parts (the `.copilotKitChat` selector, the `z-[1200]` sizing, the inline-colour overrides) live in
+one package instead of scattered through an app.
+
+```tsx
+<A2UIChatProvider runtimeUrl="/api/copilotkit" agentId="product_agent" app={children}>
+  <FrontendTools />   {/* things only YOUR browser can do */}
+</A2UIChatProvider>
+```
+
+It ships TypeScript source rather than a build output — `transpilePackages: ["@a2ui/kit"]` in
+`next.config.ts` — so there is no build step to keep in sync.
 
 ---
 

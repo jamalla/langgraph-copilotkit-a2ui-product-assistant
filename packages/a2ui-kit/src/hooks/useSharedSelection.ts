@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useAgent, UseAgentUpdate } from "@copilotkit/react-core/v2";
 
-import { AGENT_ID, type SharedAgentState } from "./agent-state";
+import { useA2UIKitConfig } from "../config";
+import type { SharedAgentState } from "../agent-state";
 
 /**
  * One selection, shared by the React grid and the LangGraph agent.
@@ -34,7 +35,9 @@ import { AGENT_ID, type SharedAgentState } from "./agent-state";
  * agent from a user gesture (`select`), never from an effect watching state.
  * The effect is strictly one-directional: agent state in, React state out.
  */
-export function useSharedSelection(agentId: string = AGENT_ID) {
+export function useSharedSelection(agentIdOverride?: string) {
+  const { agentId: configured } = useA2UIKitConfig();
+  const agentId = agentIdOverride ?? configured;
   const { agent, isReady } = useAgent({
     agentId,
     // BOTH, and the second one is not optional.

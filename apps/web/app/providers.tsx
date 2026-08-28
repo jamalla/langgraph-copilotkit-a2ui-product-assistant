@@ -1,33 +1,28 @@
 "use client";
 
-import { CopilotKitProvider, CopilotPopup } from "@copilotkit/react-core/v2";
+import { A2UIChatProvider } from "@a2ui/kit";
 
-import { AgentBridge } from "@/components/AgentBridge";
-import { ChatPipelineSlot } from "@/components/ChatPipelineSlot";
-import { ChatResizer } from "@/components/ChatResizer";
-import { AGENT_ID } from "@/lib/agent-state";
+import { FrontendTools } from "@/components/FrontendTools";
+import { AGENT_ID } from "@/lib/agent";
 
 /**
- * Client-side CopilotKit wiring.
+ * The app's only CopilotKit wiring.
  *
- * There is deliberately no `a2ui` prop here. The renderer activates on its own
- * once the runtime reports that A2UI is configured (see app/api/copilotkit/route.ts).
- * The prop exists only to override the theme, and we theme through CSS instead —
- * see app/a2ui-theme.css.
+ * Everything about HOW the agent's UI reaches the browser — the chat shell,
+ * resizing, the tool list, the A2UI theme, the pipeline explainer, write
+ * confirmation — lives in @a2ui/kit. What stays here is what the kit cannot
+ * know: which agent to talk to, and the browser-side tools that understand
+ * product cards.
  */
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <CopilotKitProvider runtimeUrl="/api/copilotkit">
-      <AgentBridge />
-      {children}
-      <CopilotPopup
-        agentId={AGENT_ID}
-        labels={{
-          chatInputPlaceholder: "Ask about the catalog…",
-        }}
-      />
-      <ChatResizer />
-      <ChatPipelineSlot />
-    </CopilotKitProvider>
+    <A2UIChatProvider
+      runtimeUrl="/api/copilotkit"
+      agentId={AGENT_ID}
+      inputPlaceholder="Ask about the catalog…"
+      app={children}
+    >
+      <FrontendTools />
+    </A2UIChatProvider>
   );
 }

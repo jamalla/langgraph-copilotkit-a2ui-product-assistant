@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useA2UIKitConfig } from "../config";
+
 /**
  * What the agent can actually do, listed in the chat.
  *
@@ -31,10 +33,11 @@ export function ToolList() {
   const [tools, setTools] = useState<Tool[] | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const { toolsEndpoint } = useA2UIKitConfig();
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/tools", { cache: "no-store" })
+    fetch(toolsEndpoint, { cache: "no-store" })
       .then((r) => r.json())
       .then((d: { tools?: Tool[]; warning?: string }) => {
         if (!alive) return;
@@ -45,7 +48,7 @@ export function ToolList() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [toolsEndpoint]);
 
   if (!tools?.length) return null;
 

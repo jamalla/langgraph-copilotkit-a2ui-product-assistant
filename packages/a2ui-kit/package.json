@@ -1,0 +1,23 @@
+{
+  "name": "@a2ui/kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generative-UI layer for CopilotKit + A2UI: chat shell, theming, and the pipeline explainer",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles/index.css"
+  },
+  "peerDependencies": {
+    "@copilotkit/react-core": "^1.69.0",
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.7.0",
+    "@types/react-dom": "^19.0.0"
+  }
+}

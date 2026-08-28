@@ -1,0 +1,4 @@
+/* Everything the generative-UI layer needs to look right.
+   Import once, after your own tokens — it consumes them. */
+@import "./chat.css";
+@import "./a2ui-theme.css";

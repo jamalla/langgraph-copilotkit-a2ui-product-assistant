@@ -5,7 +5,7 @@ import {
   createCopilotEndpoint,
 } from "@copilotkit/runtime/v2";
 
-import { AGENT_ID } from "@/lib/agent-state";
+import { AGENT_ID } from "@/lib/agent";
 
 /**
  * The CopilotKit runtime.

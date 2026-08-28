@@ -11,24 +11,6 @@
  * those and the browser never touches them.
  */
 
-/**
- * The agent's name. One constant, because it appears in five places that must
- * agree: the runtime's `agents` map, `langgraph.json`'s graph id, the chat
- * component, and every hook that reaches into the agent.
- *
- * The hooks are the trap. `useInterrupt`, `useFrontendTool` and `useAgent` all
- * fall back to the surrounding chat configuration and then to a literal
- * `"default"`. A component mounted OUTSIDE `<CopilotPopup>` has no chat
- * configuration, so it silently asks for an agent named "default" and throws at
- * runtime:
- *
- *     useAgent: Agent 'default' not found after runtime sync.
- *     Known agents: [product_agent]
- *
- * Nothing type-checks this. Passing `agentId` explicitly everywhere is the fix.
- */
-export const AGENT_ID = "product_agent";
-
 export interface SharedAgentState {
   /**
    * Products currently under discussion.

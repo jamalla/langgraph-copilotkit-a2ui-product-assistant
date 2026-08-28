@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { A2UIPipeline } from "./A2UIPipeline";
+import { A2UIPipeline } from "../explain/A2UIPipeline";
 import { ToolList } from "./ToolList";
 
 /**
