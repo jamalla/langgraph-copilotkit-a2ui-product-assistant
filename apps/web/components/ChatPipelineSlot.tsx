@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { A2UIPipeline } from "./A2UIPipeline";
+import { ToolList } from "./ToolList";
 
 /**
  * Puts the "how this UI was generated" panel inside the chat message list.
@@ -30,28 +31,61 @@ import { A2UIPipeline } from "./A2UIPipeline";
  */
 
 const MOUNT_ID = "a2ui-pipeline-slot";
-const MESSAGE_LIST = ".copilotKitMessages";
+const TOOLS_ID = "a2ui-tools-slot";
+
+/**
+ * Two different hosts, because they appear at different times.
+ *
+ * `.copilotKitMessages` does not exist until the first message is sent — so
+ * mounting there means the panels are invisible exactly when someone wants
+ * them, and they vanish again when the thread changes. `.copilotKitChat` is
+ * present as soon as the popup opens and stays put, so both panels anchor to
+ * it: tools at the top, the pipeline explainer at the bottom.
+ */
+const CHAT_BODY = ".copilotKitChat";
 
 export function ChatPipelineSlot() {
   const [host, setHost] = useState<HTMLElement | null>(null);
+  const [toolsHost, setToolsHost] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     let mount: HTMLElement | null = null;
+    let toolsMount: HTMLElement | null = null;
 
     const attach = () => {
-      const list = document.querySelector<HTMLElement>(MESSAGE_LIST);
-      if (!list) return false;
+      // Tool list: top of the chat body, visible from the moment it opens.
+      const body = document.querySelector<HTMLElement>(CHAT_BODY);
+      if (body) {
+        const existingTools = document.getElementById(TOOLS_ID);
+        if (existingTools && body.contains(existingTools)) {
+          setToolsHost(existingTools);
+        } else {
+          toolsMount = existingTools ?? document.createElement("div");
+          toolsMount.id = TOOLS_ID;
+          toolsMount.style.padding = "0.5rem 0.75rem 0";
+          body.prepend(toolsMount);
+          setToolsHost(toolsMount);
+        }
+      }
+
+      // Pipeline panel: bottom of the chat body, just above the input.
+      //
+      // The message list would be a more natural home — right under the surface
+      // it explains — but it only exists once a message has been sent, and it
+      // is re-created as the thread changes. Anchoring to the chat body means
+      // the panel survives all of that.
+      if (!body) return false;
 
       const existing = document.getElementById(MOUNT_ID);
-      if (existing && list.contains(existing)) {
+      if (existing && body.contains(existing)) {
         setHost(existing);
         return true;
       }
 
       mount = existing ?? document.createElement("div");
       mount.id = MOUNT_ID;
-      // Always last, so the panel sits under the surface it explains.
-      list.appendChild(mount);
+      mount.style.padding = "0 0.75rem";
+      body.appendChild(mount);
       setHost(mount);
       return true;
     };
@@ -59,20 +93,29 @@ export function ChatPipelineSlot() {
     if (attach()) return;
 
     // The popup mounts lazily and re-mounts when reopened, so watch for it.
+    // Both hosts appear (and re-appear) as the popup mounts, opens and closes.
     const observer = new MutationObserver(() => {
-      const list = document.querySelector(MESSAGE_LIST);
-      if (!list) return;
-      const inside = document.getElementById(MOUNT_ID);
-      if (!inside || !list.contains(inside)) attach();
+      const body = document.querySelector(CHAT_BODY);
+      if (!body) return;
+      const has = (id: string) => {
+        const node = document.getElementById(id);
+        return !!node && body.contains(node);
+      };
+      if (!has(TOOLS_ID) || !has(MOUNT_ID)) attach();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
       observer.disconnect();
       mount?.remove();
+      toolsMount?.remove();
     };
   }, []);
 
-  if (!host) return null;
-  return createPortal(<A2UIPipeline />, host);
+  return (
+    <>
+      {toolsHost && createPortal(<ToolList />, toolsHost)}
+      {host && createPortal(<A2UIPipeline />, host)}
+    </>
+  );
 }

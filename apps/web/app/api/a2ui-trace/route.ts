@@ -23,35 +23,50 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const threadId = new URL(request.url).searchParams.get("thread");
 
-  try {
-    let target = threadId;
+  const stateOf = async (id: string) => {
+    const res = await fetch(`${LANGGRAPH}/threads/${id}/state`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const state = (await res.json()) as { values?: Record<string, unknown> };
+    return state.values ?? null;
+  };
 
-    // No thread given: take the most recently updated one.
-    if (!target) {
-      const res = await fetch(`${LANGGRAPH}/threads/search`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ limit: 1, sort_by: "updated_at", sort_order: "desc" }),
-        cache: "no-store",
+  try {
+    if (threadId) {
+      const values = await stateOf(threadId);
+      return NextResponse.json({
+        threadId,
+        trace: values?.a2ui_trace ?? null,
+        surface: values?.surface ?? null,
       });
-      if (!res.ok) return NextResponse.json({ trace: null, reason: "no threads" });
-      const threads = (await res.json()) as { thread_id: string }[];
-      target = threads?.[0]?.thread_id ?? null;
     }
 
-    if (!target) return NextResponse.json({ trace: null, reason: "no threads" });
-
-    const stateRes = await fetch(`${LANGGRAPH}/threads/${target}/state`, { cache: "no-store" });
-    if (!stateRes.ok) return NextResponse.json({ trace: null, reason: "no state" });
-
-    const state = (await stateRes.json()) as { values?: Record<string, unknown> };
-    const values = state.values ?? {};
-
-    return NextResponse.json({
-      threadId: target,
-      trace: values.a2ui_trace ?? null,
-      surface: values.surface ?? null,
+    // No thread given: walk recent threads newest-first and take the first that
+    // actually has a trace.
+    //
+    // Taking simply the newest does not work — CopilotKit creates an empty
+    // thread as soon as the chat mounts, so the most recently touched thread is
+    // usually one with no state at all.
+    const res = await fetch(`${LANGGRAPH}/threads/search`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ limit: 10, sort_by: "updated_at", sort_order: "desc" }),
+      cache: "no-store",
     });
+    if (!res.ok) return NextResponse.json({ trace: null, reason: "thread search failed" });
+
+    const threads = (await res.json()) as { thread_id: string }[];
+    for (const thread of threads ?? []) {
+      const values = await stateOf(thread.thread_id);
+      if (values?.a2ui_trace) {
+        return NextResponse.json({
+          threadId: thread.thread_id,
+          trace: values.a2ui_trace,
+          surface: values.surface ?? null,
+        });
+      }
+    }
+
+    return NextResponse.json({ trace: null, reason: "no thread has rendered a surface yet" });
   } catch (error) {
     return NextResponse.json({ trace: null, reason: String(error) }, { status: 200 });
   }

@@ -21,6 +21,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const MIN_W = 340;
 const MIN_H = 320;
 const KEY = "chat-size";
+const KEY_PREV = "chat-size-before-max";
+
+/** Maximised fills the viewport, leaving the launcher and margins visible. */
+function maxSize() {
+  return {
+    w: Math.round(window.innerWidth * 0.94),
+    h: Math.round(window.innerHeight * 0.86),
+  };
+}
 
 const PRESETS: { label: string; w: number; h: number }[] = [
   { label: "S", w: 420, h: 560 },
@@ -75,6 +84,32 @@ export function ChatResizer() {
     });
   }, []);
 
+  // Maximise / restore. The previous size is remembered so restore returns to
+  // whatever the user had, not to a hard-coded default.
+  const maxed =
+    !!size && size.w >= Math.round(window.innerWidth * 0.94) - 2 && size.h >= Math.round(window.innerHeight * 0.86) - 2;
+
+  const toggleMax = useCallback(() => {
+    if (!size) return;
+    if (maxed) {
+      let previous = PRESETS[0];
+      try {
+        const saved = localStorage.getItem(KEY_PREV);
+        if (saved) previous = JSON.parse(saved);
+      } catch {
+        /* fall back to the smallest preset */
+      }
+      setSize(previous);
+      return;
+    }
+    try {
+      localStorage.setItem(KEY_PREV, JSON.stringify(size));
+    } catch {
+      /* restore will fall back to a preset */
+    }
+    setSize(maxSize());
+  }, [maxed, size]);
+
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     drag.current = null;
     try {
@@ -110,6 +145,21 @@ export function ChatResizer() {
             {p.label}
           </button>
         ))}
+
+        <button
+          type="button"
+          onClick={toggleMax}
+          aria-pressed={maxed}
+          title={maxed ? "Restore chat size" : "Maximize chat"}
+          aria-label={maxed ? "Restore chat size" : "Maximize chat"}
+          className={`grid size-6 place-items-center rounded-control border text-[11px] transition ${
+            maxed
+              ? "border-brand bg-brand text-brand-ink"
+              : "border-line bg-surface text-ink-muted hover:border-line-strong hover:text-ink"
+          }`}
+        >
+          {maxed ? "🗗" : "⛶"}
+        </button>
 
         <div
           role="separator"

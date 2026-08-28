@@ -53,7 +53,7 @@ the catalog file, your API key and all three ports before anything starts.
 | `pnpm setup` | install + sync + preflight, from a fresh clone |
 | `pnpm dev` | all three services, colour-prefixed |
 | `pnpm dev:web` / `dev:agent` / `dev:mcp` | one service at a time |
-| `pnpm check` | typecheck + all 55 tests |
+| `pnpm check` | typecheck + all 57 tests |
 | `pnpm smoke` | load the running app in headless Edge, fail on any console error |
 | `pnpm check:all` | `check` + `smoke` (needs `pnpm dev` running) |
 | `pnpm test:mcp` / `test:agent` | one suite |
@@ -201,6 +201,20 @@ thread's state directly. `a2ui_trace` is an ordinary state channel, so one HTTP 
 Note this also means **Part 5's agent → grid direction is unverified.** Clicking a card writes
 selection to the agent (confirmed working); the agent writing selection back to the grid depends on
 the same empty `agent.state` and has not been demonstrated.
+
+### Panels must anchor to `.copilotKitChat`, not `.copilotKitMessages`
+
+The message list does not exist until the first message is sent, and it is
+re-created as the thread changes. Anything mounted there is invisible exactly when
+someone wants it — the tool list most of all. `.copilotKitChat` is present as soon
+as the popup opens and stays put.
+
+### CopilotKit creates an empty thread on mount
+
+`/threads/search` sorted newest-first returns that empty thread, not the one that
+just rendered a surface. [`/api/a2ui-trace`](apps/web/app/api/a2ui-trace/route.ts)
+therefore walks recent threads and takes the first that actually has an
+`a2ui_trace`.
 
 ### The chat window only scales its outer container
 

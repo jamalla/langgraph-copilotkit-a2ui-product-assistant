@@ -286,6 +286,41 @@ def view_cart() -> dict[str, Any]:
     return cart_store.view()
 
 
+# ------------------------------------------------------- introspection route
+
+
+WRITE_TOOLS = {"add_to_cart", "remove_from_cart"}
+
+
+@mcp.custom_route("/tools.json", methods=["GET"])
+async def list_tools_route(request):  # noqa: ANN001, ANN201 - starlette types
+    """Plain HTTP listing of this server's tools, for the UI to display.
+
+    Not part of MCP. The chat shows users what the agent can actually do, and
+    reimplementing the MCP handshake in the browser to find that out would be
+    absurd when the server already knows.
+
+    The first line of each docstring is the summary; `write` marks the tools
+    that change state and therefore need a human to confirm.
+    """
+    from starlette.responses import JSONResponse
+
+    tools = await mcp.list_tools()
+    payload = [
+        {
+            "name": tool.name,
+            "summary": (tool.description or "").strip().splitlines()[0],
+            "write": tool.name in WRITE_TOOLS,
+            "parameters": sorted(
+                (tool.parameters or {}).get("properties", {}).keys()
+            ),
+        }
+        for tool in tools
+    ]
+    payload.sort(key=lambda t: (t["write"], t["name"]))
+    return JSONResponse({"server": "product-catalog", "tools": payload})
+
+
 def main() -> None:
     host = os.getenv("MCP_SERVER_HOST", "127.0.0.1")
     port = int(os.getenv("MCP_SERVER_PORT", "8931"))

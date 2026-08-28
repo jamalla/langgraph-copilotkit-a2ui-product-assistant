@@ -171,3 +171,25 @@ async def test_list_categories_carries_price_ranges(client):
     data = await call(client, "list_categories")
     monitors = next(c for c in data["categories"] if c["category"] == "monitors")
     assert monitors["price_range"] == {"min": 179, "max": 1499}
+
+
+# ------------------------------------------------------- introspection route
+
+
+async def test_every_tool_has_a_one_line_summary(client):
+    """The /tools.json route shows users what the agent can do.
+
+    It takes the first line of each docstring, so a tool whose docstring starts
+    with a blank line would show an empty summary in the UI.
+    """
+    for tool in await client.list_tools():
+        first = (tool.description or "").strip().splitlines()
+        assert first, f"{tool.name} has no description"
+        assert len(first[0]) > 15, f"{tool.name} has a uselessly short summary"
+
+
+async def test_write_tools_announce_themselves(client):
+    """The UI labels these as needing confirmation, and the model is told too."""
+    tools = {t.name: (t.description or "") for t in await client.list_tools()}
+    for name in ("add_to_cart", "remove_from_cart"):
+        assert "CHANGES STATE" in tools[name], f"{name} must declare that it writes"
