@@ -75,6 +75,9 @@ COPY data ./data
 COPY packages/a2ui-kit ./packages/a2ui-kit
 COPY apps/web ./apps/web
 COPY apps/agent/langgraph.json ./apps/agent/
+# Served by the web app at /explainer. Without this the link 404s in
+# production while working perfectly on a developer's machine.
+COPY a2ui-explainer.html ./
 COPY docker ./docker
 
 # The build reads data/products.json through a path that walks up out of the

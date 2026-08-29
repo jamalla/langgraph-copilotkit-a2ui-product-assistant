@@ -43,6 +43,27 @@ It ships TypeScript source rather than a build output — `transpilePackages: ["
 
 ---
 
+## Contents
+
+- [Quick start](#quick-start)
+- [Anatomy: three services and one library](#anatomy-three-services-and-one-library)
+- [Learning it: the explainer](#learning-it-the-explainer)
+- [Learning it: the journey panel](#learning-it-the-journey-panel)
+- [How a single turn actually flows](#how-a-single-turn-actually-flows)
+- [Human in the loop: confirming writes](#human-in-the-loop-confirming-writes)
+- [Gotchas found the hard way](#gotchas-found-the-hard-way)
+- [Running it in Docker](#running-it-in-docker)
+- [Troubleshooting](#troubleshooting)
+- [Design decisions worth knowing](#design-decisions-worth-knowing)
+- [Build log](#build-log)
+
+**Not reading?** Open [`a2ui-explainer.html`](a2ui-explainer.html) — a standalone,
+twelve-step narrated player that traces one real question from typed sentence to mounted
+React, naming the file responsible at every step. No build, no server, no dependencies.
+It is also served by the running app at **/explainer**, and linked from the header of every
+page.
+
+---
 ## Quick start
 
 ```bash
@@ -74,6 +95,121 @@ the catalog file, your API key and all three ports before anything starts.
 | `pnpm test:mcp` / `test:agent` | one suite |
 | `pnpm preflight` | environment check on its own |
 | `pnpm build` | production build of the web app |
+
+---
+
+## Anatomy: three services and one library
+
+Four workspace members. Three are **services** — separate processes that speak HTTP — and one is a
+**library** that only ever runs inside the browser bundle.
+
+```
++---------------------------------------- BROWSER -----------------------------------------+
+|                                                                                           |
+|  apps/web  - your product                    packages/a2ui-kit  - the generative-UI layer  |
+|  +----------------------------+             +-------------------------------------------+ |
+|  | app/page.tsx               |             | provider.tsx       chat shell + write      | |
+|  | components/Catalog.tsx     |<--shared--->|                    confirmation            | |
+|  | components/ProductGrid.tsx |  selection  | chat/ChatResizer   drag / maximise         | |
+|  | components/ProductCard.tsx |             | chat/ToolList      what the agent can do   | |
+|  | components/FrontendTools   |             | explain/A2UIPipeline  "how was this UI     | |
+|  |   things only a browser    |             |                       generated?"          | |
+|  |   can do (highlight, ...)  |             | styles/a2ui-theme.css  house styling       | |
+|  | app/globals.css - tokens --+-------------+-->  applied to every generated surface     | |
+|  +----------------------------+             +-------------------------------------------+ |
++-------------------------------------------+---------------------------------------------+
+                                            |  POST /api/copilotkit   (AG-UI event stream)
++-------------------------------------------v----------------- apps/web (server) - :3000 --+
+|  app/api/copilotkit/[[...rest]]/route.ts    CopilotRuntime v2 + a2ui middleware           |
+|  app/api/products/route.ts                  the catalog, for React                        |
+|  app/api/tools/route.ts                     proxies the MCP tool list, for ToolList       |
+|  app/api/a2ui-trace/route.ts                the last run's trace, for A2UIPipeline        |
+|  app/explainer/route.ts                     serves a2ui-explainer.html from the root      |
++-------------------------------------------+---------------------------------------------+
+                                            |  AG-UI over HTTP
++-------------------------------------------v----------------- apps/agent - Python - :2024 +
+|  graph.py         wires the nodes                                                         |
+|  nodes.py         supervisor -> catalog . compare . recommend . cart -> presenter         |
+|  state.py         AgentState - what survives between turns                                |
+|  a2ui.py          turns fetched products into a rendered surface                          |
+|  design_rules.py  HOUSE_STYLE - the rules every generated surface must obey                |
+|  prompts.py       one prompt per node                                                     |
++-------------------------------------------+---------------------------------------------+
+                                            |  MCP streamable-http
++-------------------------------------------v----------------- apps/mcp - Python - :8931 --+
+|  server.py    8 tools + GET /tools.json                                                   |
+|  catalog.py   scored retrieval - synonyms, field weights, ranking                          |
+|  compare.py   a fact-only comparison matrix (deliberately picks no winner)                 |
+|  cart.py      the two write tools, which is why writes need confirming                     |
++-------------------------------------------+---------------------------------------------+
+                                            |  reads
+                         +------------------v-------------------+
+                         |  data/products.json                   |
+                         |  30 products - one source of truth,   |
+                         |  read by web AND mcp                  |
+                         +---------------------------------------+
+```
+
+### Who owns what
+
+| Member | Owns | Deliberately knows nothing about |
+|---|---|---|
+| [apps/web](apps/web/) | Your product: catalog, filters, cards, design tokens | How an agent's UI is produced |
+| [packages/a2ui-kit](packages/a2ui-kit/) | How an agent's UI reaches a browser | Products, prices, categories |
+| [apps/agent](apps/agent/) | Reasoning, routing, deciding what to render | HTTP routes, React, CSS |
+| [apps/mcp](apps/mcp/) | Retrieval and facts | LLMs, prompts, the agent |
+
+That third column is the point. `@a2ui/kit` holds no product logic, so a second app gets the whole
+generative-UI layer from one import. `apps/mcp` holds no LLM, so its 19 tests are deterministic and
+finish in under a second. `apps/agent` holds no HTML, so replacing the frontend would not touch it.
+
+### Which way dependencies point
+
+```
+apps/web  --imports-->  packages/a2ui-kit        the only import edge in the repo
+
+apps/web  --HTTP-->  apps/agent  --HTTP-->  apps/mcp
+
+apps/web  --reads-->  data/products.json  <--reads--  apps/mcp
+```
+
+Two rules keep it that way, and both matter more than they look.
+
+**Nothing imports across a service boundary.** The Python apps never import each other, and the web
+app never imports Python. They compose over HTTP, so any one can be restarted, rewritten, or moved
+to another host without touching the others. That is also what lets all three ship as one container:
+co-locating them is a deployment choice, not a coupling.
+
+**`@a2ui/kit` never imports from `apps/web`.** If it did, it would stop being reusable and become a
+second copy of this app. The dependency runs one way — the app supplies design tokens, the kit
+consumes them. `@source "../../../packages/a2ui-kit/src"` in `globals.css` is what makes Tailwind
+generate classes for kit components; omit it and they render unstyled, which looks like a CSS bug
+and is really a build-scope one.
+
+### One question, across every box
+
+Typing **"show me noise cancelling headphones under $300"** traverses the whole diagram:
+
+| # | File | What it does |
+|---|---|---|
+| 1 | `components/Catalog.tsx` | Click history is already shared state, so "this one" would resolve |
+| 2 | `provider.tsx` (kit) | Chat posts the message to `/api/copilotkit` |
+| 3 | `api/copilotkit/route.ts` | `CopilotRuntime` forwards it to the agent as an AG-UI stream |
+| 4 | `nodes.py` supervisor | Classifies intent, routes to `catalog_agent` |
+| 5 | `nodes.py` catalog_agent | Calls the MCP `search_products` tool |
+| 6 | `catalog.py` (mcp) | Scores and ranks against `products.json`; returns **JSON, never prose** |
+| 7 | `nodes.py` presenter | Writes the prose answer, with no tools bound |
+| 8 | `a2ui.py` | Has a second model design a component tree under `HOUSE_STYLE` |
+| 9 | a2ui middleware | Streams `createSurface` -> `updateComponents` -> `updateDataModel` |
+| 10 | kit renderer | Mounts real React; `a2ui-theme.css` makes it match the app |
+| 11 | `A2UIPipeline` (kit) | Replays steps 4-10 in the left panel so you can watch it |
+
+Step 11 exists because every step above fails *silently*. The answer still reads plausibly, nothing
+throws, and nothing lands in a log. Nearly every entry under
+[Gotchas found the hard way](#gotchas-found-the-hard-way) was exactly that.
+
+For *why* the graph is shaped this way, rather than what it touches, see
+[How a single turn actually flows](#how-a-single-turn-actually-flows).
 
 ---
 
@@ -199,12 +335,110 @@ stale on the next click, costs tokens every turn, and is the first thing dropped
 `useSharedSelection` only ever pushes to the agent from a **user gesture**, never from an effect
 watching state. That's what stops the bidirectional loop.
 
-### Why `interrupt()` rather than a React confirm dialog
+---
 
-`add_to_cart` pauses the graph with `interrupt()`. The run **finishes** and the pending state is
-written to the checkpointer — nothing is held in memory. Reload the page mid-confirmation and the
-pause is still there. A dialog in React is a promise the client keeps; a checkpointed interrupt is a
-promise the server keeps.
+## Human in the loop: confirming writes
+
+Ask **"add Pulse Buds Lite to my cart"** and the agent does not do it. It stops and asks:
+
+```
+┌─────────────────────────────────────────────────┐
+│  Add 1 unit of hp-006 to your cart?             │
+│  This changes state, so it needs your say-so.   │
+│                                                 │
+│  [ Yes, do it ]  [ No ]   Cancel the whole thing│
+└─────────────────────────────────────────────────┘
+```
+
+### No, this is not A2UI
+
+It is worth being precise, because the two mechanisms look similar on screen and are nothing alike
+underneath. **A2UI renders what the agent produced. The interrupt pauses to ask you something.**
+
+| | A2UI surface | This confirmation |
+|---|---|---|
+| Who designs the UI | **A second LLM**, at run time, per turn | **You**, in `provider.tsx`, at build time |
+| What arrives over the wire | `createSurface` → `updateComponents` → `updateDataModel` | One LangGraph interrupt event |
+| Frontend hook | A2UI renderer inside CopilotKit | `useInterrupt` |
+| Does the graph stop? | No — it is a render | **Yes** — suspended and checkpointed |
+| Same layout every time? | No, by design | **Yes, by design** |
+| Where it lives | [`a2ui.py`](apps/agent/src/agent/a2ui.py) | [`nodes.py`](apps/agent/src/agent/nodes.py) + [`provider.tsx`](packages/a2ui-kit/src/provider.tsx) |
+
+That last row is the reason it is not A2UI, and it is a deliberate choice rather than a gap.
+
+**You do not let a language model design the button that spends money.** A confirmation dialog has
+to be identical every time, phrased the same way every time, with the destructive option never
+styled as the safe one. Generated UI is valuable precisely because it varies with the answer — which
+is exactly the property you do not want in a consent dialog. So the surfaces that *show* you things
+are generated, and the one control that *asks* you something is hand-written and fixed.
+
+### How it works, end to end
+
+```
+ you: "add Pulse Buds Lite to my cart"
+   │
+   ▼
+ cart_agent decides to call add_to_cart
+   │
+   │  nodes.py — the call is checked against WRITE_TOOLS
+   ▼
+ _confirm_write(call)
+   │
+   │  interrupt({kind, tool, args, summary})
+   │  ├─ graph SUSPENDS
+   │  ├─ pending state is written to the checkpointer
+   │  └─ the HTTP run FINISHES  ← nothing is held in memory
+   ▼
+ browser: useInterrupt renders <ConfirmWrites>
+   │
+   ├─ "Yes, do it"            → resolve({approved: true})
+   ├─ "No"                    → resolve({approved: false, reason: …})
+   └─ "Cancel the whole thing"→ cancel()
+   │
+   ▼
+ a Command resumes the graph FROM THAT EXACT LINE
+   │
+   ├─ approved  → the MCP tool actually runs
+   └─ declined  → a ToolMessage saying `cancelled_by_user`, so the
+                  model answers gracefully instead of pretending it worked
+```
+
+The decline path matters more than it looks. The agent is not silently short-circuited — it receives
+a real tool result saying the user said no, so it can reply *"No problem, I haven't added it"*
+rather than hallucinating a success it never got.
+
+### Why `interrupt()` rather than a confirm dialog in React
+
+You could gate this in the browser: pop a dialog before letting the request go out. It would be less
+code. It would also be wrong.
+
+`interrupt()` **suspends the graph and writes the pending state to the checkpointer**. The HTTP run
+completes, and the answer arrives later as a `Command` that resumes execution *from that exact line*.
+Between those two moments nothing is held in memory.
+
+That means the pause survives a page reload, a dropped connection, a server restart, and a deploy.
+A dialog in React is a promise the client has to keep — close the tab and it is gone. A checkpointed
+interrupt is a promise the **server** keeps.
+
+### Which tools need it, and why only those
+
+```python
+WRITE_TOOLS = frozenset({"add_to_cart", "remove_from_cart"})
+```
+
+Two of the eight MCP tools. The split is not about danger, it is about **asymmetry**: a read that
+goes wrong costs you a re-ask, while a write that goes wrong costs you a state you did not choose.
+Searching, comparing, and checking stock need no permission because undoing them is free.
+
+To gate another tool, add its name to that set — the machinery is already generic. To change the
+wording, edit `_describe_write` (agent) or `ConfirmWrites` (kit). To change the buttons, only
+`provider.tsx` changes; the graph neither knows nor cares how you were asked.
+
+### A rough edge worth knowing
+
+The dialog currently reads *"Add 1 unit of **hp-006** to your cart?"* — the raw product id, not
+"Pulse Buds Lite". `_describe_write` only receives the tool-call arguments, and the id is all the
+model passes. Correct, but colder than it should be at the exact moment a person is deciding.
 
 ---
 
@@ -360,11 +594,11 @@ therefore walks recent threads and takes the first that actually has an
 Setting a size on the popup's outer container leaves `.copilotKitPopup` at its shipped 420×560
 inside a 900×860 parent. Every layer between the container and the message list needs forcing to
 fill, and `.copilotKitMessages` needs `min-height: 0` — without it a flex child grows instead of
-scrolling. See [copilot-chat.css](apps/web/app/copilot-chat.css).
+scrolling. See [copilot-chat.css](packages/a2ui-kit/src/styles/chat.css).
 
 CSS `resize` only ever puts its grip in the bottom-right corner, which on a bottom-right-anchored
 panel drags the window off-screen — hence the custom top-left handle in
-[ChatResizer.tsx](apps/web/components/ChatResizer.tsx).
+[ChatResizer.tsx](packages/a2ui-kit/src/chat/ChatResizer.tsx).
 
 ### `ag-ui.a2ui_schema` is never set on the Node-adapter path
 
@@ -429,7 +663,7 @@ useAgent: Agent 'default' not found after runtime sync. Known agents: [product_a
 ```
 
 Pass `agentId` explicitly to every hook. `AGENT_ID` in
-[lib/agent-state.ts](apps/web/lib/agent-state.ts) is the single source of truth, used by the
+[lib/agent-state.ts](packages/a2ui-kit/src/agent-state.ts) is the single source of truth, used by the
 runtime's `agents` map, the chat component and all three hooks.
 
 **Nothing in this repo caught it.** `tsc` was clean, 45 tests passed, and driving the runtime with

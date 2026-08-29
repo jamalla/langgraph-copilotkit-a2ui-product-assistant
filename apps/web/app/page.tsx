@@ -1,4 +1,5 @@
 import { Catalog } from "@/components/Catalog";
+import { ProjectLinks } from "@/components/ProjectLinks";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { listCategories, priceBounds, queryProducts } from "@/lib/data";
 
@@ -34,7 +35,10 @@ export default function HomePage() {
             </span>
           </p>
         </div>
-        <ThemeToggle />
+        <div className="flex shrink-0 items-center gap-2">
+          <ProjectLinks />
+          <ThemeToggle />
+        </div>
       </header>
 
       <Catalog
