@@ -1,0 +1,15 @@
+# Normalize to LF in the repository.
+* text=auto
+
+# These are read by Linux inside a container. A shell script checked out with
+# CRLF fails as `#!/usr/bin/env bash\r: no such file or directory` — a startup
+# crash that says nothing about line endings. Pin them regardless of platform
+# or the developer's core.autocrlf setting.
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+
+# Lockfiles are generated; keep them out of diffs and merges.
+pnpm-lock.yaml  linguist-generated=true -diff
+uv.lock         linguist-generated=true -diff
