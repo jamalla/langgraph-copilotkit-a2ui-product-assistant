@@ -6,12 +6,16 @@ name: Keep Render awake
 # that the logs measure at about five seconds on its own. This pings the app so
 # there is usually nothing to wake up.
 #
-# Two things to know before relying on it:
+# The interval is set to fifteen minutes by request. Know what that trades away:
 #
-#   * GitHub's shortest cron interval is five minutes, and scheduled runs are
-#     best-effort. Under load they are delayed, sometimes past fifteen minutes,
-#     so an occasional cold start still happens. This reduces them, it does not
-#     abolish them.
+#   * Render's idle timeout is ALSO fifteen minutes, so this is a dead heat. Any
+#     late run loses it, and GitHub schedules are best-effort: under load they
+#     are delayed by minutes, sometimes more. Expect cold starts to keep
+#     happening. Five minutes gives the ping three chances inside every idle
+#     window instead of one, and costs nothing extra on the Render side, because
+#     a service kept awake uses the same instance-hours either way.
+#   * If cold starts are the thing you actually want gone, change the cron below
+#     back to */5.
 #   * GitHub disables scheduled workflows on a repository with no commits for
 #     60 days, and does so quietly. If cold starts return after a long pause,
 #     check that this workflow is still enabled before looking anywhere else.
@@ -22,7 +26,7 @@ name: Keep Render awake
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/15 * * * *"   # see the note above about the 15 minute idle timeout
   workflow_dispatch: # so you can ping it by hand from the Actions tab
 
 concurrency:

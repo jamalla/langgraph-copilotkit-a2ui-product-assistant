@@ -4,6 +4,12 @@ A polyglot monorepo of **three independent services** that compose into one gene
 assistant - an agent that doesn't just *describe* products, it **renders live UI** into the chat and
 stays bidirectionally in sync with the React app's own state.
 
+**Live: <https://a2ui-assistant.onrender.com>**
+
+Hosted on Render's free plan, so the first request after a quiet spell waits
+through a cold start: two Python runtimes, a Next server, and a graph import.
+Give it up to a minute, then it is quick.
+
 ```
 Browser ────────────────────────────────────────────────────────────┐
   React product grid  ⟷  <CopilotKitProvider> + A2UI renderer       │
@@ -909,6 +915,8 @@ chain is up. It exits as soon as *any* of them dies - a container that serves th
 catalog while the agent is dead is worse than one that restarts.
 
 ### Deploying to Render
+
+The deployment for this repo is <https://a2ui-assistant.onrender.com>.
 
 `render.yaml` is a blueprint: **New → Blueprint**, point it at the repo, and paste
 `OPENAI_API_KEY` when prompted.
