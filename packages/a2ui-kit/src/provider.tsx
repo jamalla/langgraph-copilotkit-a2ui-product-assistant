@@ -127,7 +127,16 @@ export interface A2UIChatProviderProps extends A2UIKitConfig {
    * to rendered UI, each naming the file that does the work, filled in with
    * what actually happened on the last turn.
    *
-   * A teaching aid, so it defaults ON in development and off in production.
+   * Defaults ON, including in production.
+   *
+   * It used to default to `NODE_ENV !== "production"`, which is the right
+   * instinct for a debug overlay and the wrong one here: in this project the
+   * explanation IS the product. Deploying it hid the thing the deployment was
+   * for, and the panel simply did not appear with nothing to say why.
+   *
+   * Pass `showJourney={false}` to turn it off, or set
+   * NEXT_PUBLIC_SHOW_TEACHING=false to switch every teaching surface off at
+   * once.
    */
   showJourney?: boolean;
 }
@@ -137,7 +146,7 @@ export function A2UIChatProvider({
   inputPlaceholder = "Ask me anything…",
   children,
   app,
-  showJourney = process.env.NODE_ENV !== "production",
+  showJourney = process.env.NEXT_PUBLIC_SHOW_TEACHING !== "false",
   ...config
 }: A2UIChatProviderProps) {
   return (

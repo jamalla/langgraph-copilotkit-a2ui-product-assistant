@@ -67,6 +67,34 @@ page.
 ---
 ## Quick start
 
+### One command
+
+```bash
+./run.sh
+```
+
+Does everything below in order, and refuses early with one clear line if
+anything is missing rather than failing three services deep:
+
+| Step | Why it is worth checking first |
+|---|---|
+| node, uv, pnpm | enables corepack for you if pnpm is missing |
+| `.env` and `OPENAI_API_KEY` | without a key the catalog renders and the assistant silently cannot answer |
+| ports 3000, 2024, 8931 | probed by connecting, not binding, because `next dev` binds dual-stack and a bind test reports a free port as taken |
+| dependencies | `pnpm install` and `uv sync` for both Python apps, skipped when already present |
+
+Then it starts the three services **in dependency order and waits for each to
+answer** before starting the next, so the web app never comes up pointing at an
+agent that is not listening yet. Ctrl+C stops all three together.
+
+```bash
+./run.sh --check        # run the checks and exit, start nothing
+./run.sh --skip-setup   # skip dependency install
+```
+
+On Windows use Git Bash. `pnpm dev` still works and does the same job without
+the checks or the ordering.
+
 ```bash
 cp .env.example .env       # then add your OPENAI_API_KEY
 pnpm setup                 # installs JS deps, syncs both Python venvs, runs preflight

@@ -232,6 +232,23 @@ def _describe_write(call: dict[str, Any], names: dict[str, str] | None = None) -
     return f"Run {call['name']}?"
 
 
+SURFACE_PRODUCT_CAP = 12
+"""How many products a single generated surface may contain.
+
+Unbounded, this is a production outage rather than a cosmetic problem. A turn
+that swept the whole catalog put 30 products on one surface, and the A2UI
+subagent then had to emit a component tree and a data model for all of them:
+one real run streamed 17.6 MB across 1,346 chunks and 3,954 raw events.
+
+Locally that merely takes minutes. Behind a proxy it gets cut, and the client
+reports `INCOMPLETE_STREAM` with a JSON parse error partway through a payload
+that never finished arriving. The surface never lands, so the trace never
+lands, so the panel that explains the turn has nothing to show either.
+
+Twelve is about what fits a chat-width grid before scrolling stops being
+useful, and the title says plainly when there were more.
+"""
+
 FACTS_BUDGET = 14000
 """How much serialised surface data the A2UI subagent is shown.
 
@@ -507,10 +524,17 @@ async def catalog_agent(state: AgentState, config: RunnableConfig) -> dict[str, 
     )
 
     products = _products_found(collected)
+    shown = products[:SURFACE_PRODUCT_CAP]
     surface: SurfaceSpec = {
-        "kind": "product_grid" if products else "none",
-        "title": f"{len(products)} matching products" if products else "No matches",
-        "data": {"products": products, "note": summary},
+        "kind": "product_grid" if shown else "none",
+        "title": (
+            f"{len(shown)} matching products"
+            if len(shown) == len(products)
+            else f"Top {len(shown)} of {len(products)} matching products"
+        )
+        if shown
+        else "No matches",
+        "data": {"products": shown, "note": summary},
     }
     return {
         "last_results": products,
