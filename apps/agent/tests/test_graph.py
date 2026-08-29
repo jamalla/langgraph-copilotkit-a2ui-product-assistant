@@ -939,3 +939,90 @@ def test_an_empty_cart_projects_without_raising():
     out = display_cart({"items": [], "item_count": 0, "subtotal": 0})
     assert out["items"] == []
     assert out["itemCountLabel"] == "0 items"
+
+
+# ---------------------------------------------------------------------------
+# The pruner must read every message shape, not just the convenient one
+# ---------------------------------------------------------------------------
+#
+# The first version used getattr() throughout, so a message that arrived as a
+# plain dict was skipped entirely. A client-reconstructed history is JSON, so
+# that is the normal shape, not an edge case. The pruner ran, reported success,
+# and left the orphan exactly where it was: the same 400 came back.
+
+
+def _pairs_ok(messages) -> bool:
+    issued, answered = set(), set()
+    for m in messages:
+        calls = (m.get("tool_calls") if isinstance(m, dict) else getattr(m, "tool_calls", None)) or []
+        issued.update(c.get("id") for c in calls)
+        tid = m.get("tool_call_id") if isinstance(m, dict) else getattr(m, "tool_call_id", None)
+        if tid:
+            answered.add(tid)
+    return issued <= answered
+
+
+def test_dict_messages_are_pruned_too():
+    from agent.a2ui import prune_dangling_tool_calls
+
+    history = [
+        {"type": "human", "content": "show me my cart"},
+        {"type": "ai", "content": "ok", "tool_calls": [{"name": "render_a2ui", "args": {}, "id": "orphan"}]},
+    ]
+    assert not _pairs_ok(history)
+    assert _pairs_ok(prune_dangling_tool_calls(history))
+
+
+def test_a_dict_message_with_no_content_is_dropped_whole():
+    from agent.a2ui import prune_dangling_tool_calls
+
+    out = prune_dangling_tool_calls(
+        [
+            {"type": "human", "content": "hi"},
+            {"type": "ai", "content": "", "tool_calls": [{"name": "r", "args": {}, "id": "orphan"}]},
+        ]
+    )
+    assert len(out) == 1 and _pairs_ok(out)
+
+
+def test_a_mixed_history_of_objects_and_dicts_is_handled():
+    from agent.a2ui import prune_dangling_tool_calls
+    from langchain_core.messages import AIMessage
+
+    history = [
+        {"type": "human", "content": "hi"},
+        AIMessage(content="", tool_calls=[{"name": "x", "args": {}, "id": "orphan"}]),
+        {"type": "tool", "content": "{}", "tool_call_id": "ghost"},
+    ]
+    assert _pairs_ok(prune_dangling_tool_calls(history))
+
+
+def test_additional_kwargs_tool_calls_are_stripped_with_the_parsed_ones():
+    # additional_kwargs carries the raw provider payload and the API reads it,
+    # so leaving it behind puts the call back into the request we just cleaned.
+    from agent.a2ui import prune_dangling_tool_calls
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    msg = AIMessage(
+        content="here you go",
+        additional_kwargs={
+            "tool_calls": [
+                {"id": "orphan", "type": "function", "function": {"name": "r", "arguments": "{}"}}
+            ]
+        },
+    )
+    out = prune_dangling_tool_calls([HumanMessage(content="hi"), msg])
+    assert all(not (getattr(m, "additional_kwargs", {}) or {}).get("tool_calls") for m in out)
+
+
+def test_a_dict_message_keeps_its_other_fields():
+    from agent.a2ui import prune_dangling_tool_calls
+
+    out = prune_dangling_tool_calls(
+        [
+            {"type": "human", "content": "hi"},
+            {"type": "ai", "content": "kept", "id": "m1",
+             "tool_calls": [{"name": "r", "args": {}, "id": "orphan"}]},
+        ]
+    )
+    assert out[-1]["content"] == "kept" and out[-1]["id"] == "m1"

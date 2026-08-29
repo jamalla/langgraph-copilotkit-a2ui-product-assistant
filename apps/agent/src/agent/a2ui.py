@@ -191,6 +191,61 @@ RENDER_DATA_DESCRIPTION = (
 )
 
 
+def _msg_tool_calls(message: Any) -> list[dict[str, Any]]:
+    """Tool calls on a message, whichever shape it arrived in."""
+    if isinstance(message, dict):
+        return list(message.get("tool_calls") or [])
+    return list(getattr(message, "tool_calls", None) or [])
+
+
+def _msg_tool_call_id(message: Any) -> Any:
+    if isinstance(message, dict):
+        return message.get("tool_call_id")
+    return getattr(message, "tool_call_id", None)
+
+
+def _msg_is_tool_result(message: Any) -> bool:
+    if isinstance(message, dict):
+        return (message.get("type") or message.get("role")) == "tool"
+    return getattr(message, "type", None) == "tool"
+
+
+def _msg_content(message: Any) -> str:
+    raw = message.get("content") if isinstance(message, dict) else getattr(message, "content", "")
+    return raw if isinstance(raw, str) else ""
+
+
+def _without_calls(message: Any, keep: list[dict[str, Any]]) -> Any:
+    """The same message carrying only the tool calls that were answered.
+
+    `additional_kwargs` gets the same treatment. It holds the raw provider
+    payload, the API reads it, and leaving it behind puts the call straight back
+    into the request we just cleaned.
+    """
+    if isinstance(message, dict):
+        trimmed = {k: v for k, v in message.items() if k != "additional_kwargs"}
+        trimmed["tool_calls"] = keep
+        extra = {
+            k: v
+            for k, v in (message.get("additional_kwargs") or {}).items()
+            if k != "tool_calls"
+        }
+        if extra:
+            trimmed["additional_kwargs"] = extra
+        return trimmed
+
+    return message.model_copy(
+        update={
+            "tool_calls": keep,
+            "additional_kwargs": {
+                k: v
+                for k, v in (getattr(message, "additional_kwargs", {}) or {}).items()
+                if k != "tool_calls"
+            },
+        }
+    )
+
+
 def prune_dangling_tool_calls(messages: Any) -> Any:
     """Drop tool calls that never received a result, and results with no call.
 
@@ -200,7 +255,7 @@ def prune_dangling_tool_calls(messages: Any) -> Any:
 
         400 - An assistant message with 'tool_calls' must be followed by tool
         messages responding to each 'tool_call_id'. The following tool_call_ids
-        did not have response messages: call_xPmdTUzOyOhRWScbmjuSr6aV
+        did not have response messages: call_sBtxWrb4tqyz4ON4WEp2GWQc
 
     The history reaching this graph is not ours. CopilotKit reconstructs it in
     the browser from the event stream and sends it back as graph input, so a
@@ -211,7 +266,15 @@ def prune_dangling_tool_calls(messages: Any) -> Any:
     The damage is not where you would look for it. The turn that produced the
     orphan succeeds. It is the NEXT turn that dies, inside the A2UI subagent,
     because the subagent builds its prompt from this same history. The user sees
-    a correct text answer with no UI beneath it and no error in the chat.
+    a correct text answer with no UI beneath it.
+
+    ## Read every shape, not just the convenient one
+
+    The first version of this used `getattr(m, "tool_calls", ...)` throughout,
+    which quietly did nothing for a message that arrived as a plain dict. A
+    client-reconstructed history is JSON, so that is not a hypothetical shape,
+    it is the normal one. The pruner ran, reported success, and left the orphan
+    exactly where it was.
 
     Pruning rather than repairing: a synthesised tool result would be a lie
     about what happened, and the model reads it.
@@ -219,51 +282,35 @@ def prune_dangling_tool_calls(messages: Any) -> Any:
     if not isinstance(messages, list):
         return messages
 
-    answered = {
-        getattr(m, "tool_call_id", None)
-        for m in messages
-        if getattr(m, "type", None) == "tool"
-    }
+    answered = {_msg_tool_call_id(m) for m in messages if _msg_is_tool_result(m)}
     answered.discard(None)
 
     kept: list[Any] = []
-    issued: set[str] = set()
+    issued: set[Any] = set()
 
     for message in messages:
-        calls = getattr(message, "tool_calls", None)
+        calls = _msg_tool_calls(message)
 
         if calls:
             live = [c for c in calls if c.get("id") in answered]
             if len(live) == len(calls):
-                issued.update(c["id"] for c in live if c.get("id"))
+                issued.update(c.get("id") for c in live)
                 kept.append(message)
                 continue
 
-            # Every call on this message went unanswered, and it says nothing
-            # else. Keeping it contributes a rejected request and no meaning.
-            if not live and not (getattr(message, "content", "") or "").strip():
+            # Every call went unanswered and the message says nothing else.
+            # Keeping it contributes a rejected request and no meaning.
+            if not live and not _msg_content(message).strip():
                 continue
 
-            issued.update(c["id"] for c in live if c.get("id"))
-            trimmed = message.model_copy(
-                update={
-                    "tool_calls": live,
-                    # additional_kwargs carries its own copy of the raw call
-                    # payload, and the API reads that too.
-                    "additional_kwargs": {
-                        k: v
-                        for k, v in (getattr(message, "additional_kwargs", {}) or {}).items()
-                        if k != "tool_calls"
-                    },
-                }
-            )
-            kept.append(trimmed)
+            issued.update(c.get("id") for c in live)
+            kept.append(_without_calls(message, live))
             continue
 
-        if getattr(message, "type", None) == "tool":
+        if _msg_is_tool_result(message):
             # A result whose call we just removed, or that never had one, is
             # equally invalid in the other direction.
-            if getattr(message, "tool_call_id", None) not in issued:
+            if _msg_tool_call_id(message) not in issued:
                 continue
 
         kept.append(message)

@@ -125,7 +125,7 @@ the catalog file, your API key and all three ports before anything starts.
 | `pnpm setup` | install + sync + preflight, from a fresh clone |
 | `pnpm dev` | all three services, colour-prefixed |
 | `pnpm dev:web` / `dev:agent` / `dev:mcp` | one service at a time |
-| `pnpm check` | typecheck + all 98 tests |
+| `pnpm check` | typecheck + all 103 tests |
 | `pnpm smoke` | load the running app in headless Edge, fail on any console error |
 | `pnpm check:all` | `check` + `smoke` (needs `pnpm dev` running) |
 | `pnpm test:mcp` / `test:agent` | one suite |
