@@ -122,14 +122,23 @@ def test_new_turn_clears_last_turn_scratch():
     nothing to do with it.
     """
     reset = empty_turn()
-    for key in ("intent", "comparison", "surface", "last_results", "refined_query"):
+    for key in ("intent", "comparison", "surface", "refined_query"):
         assert reset[key] is None
 
 
 def test_conversation_state_survives_the_reset():
+    """messages, selection and results are the conversation, not scratch.
+
+    `last_results` belongs here rather than in the cleared set. Clearing it hid
+    behind the supervisor, which reads state BEFORE this update is applied, so
+    routing kept working while every worker ran afterwards and saw nothing. The
+    confirmation dialog lost its id-to-name lookup and showed "lp-008" to a
+    person deciding whether to buy a laptop.
+    """
     reset = empty_turn()
     assert "messages" not in reset
     assert "selected_product_ids" not in reset
+    assert "last_results" not in reset
 
 
 # ------------------------------------------------------------ tool isolation
@@ -695,7 +704,6 @@ def test_empty_turn_clears_every_scratch_field_through_the_reducer():
         "comparison": {"ok": True},
         "tools_used": [{"tool": "compare_products"}],
         "a2ui_trace": {"components": 12},
-        "last_results": [{"id": "hp-001"}],
         "route_reason": "because",
         "refined_query": "anc headphones",
     }

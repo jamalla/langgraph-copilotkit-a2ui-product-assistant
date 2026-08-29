@@ -134,14 +134,24 @@ def empty_turn() -> dict[str, Any]:
     The supervisor applies this on every turn. Without it, a follow-up question
     inherits the previous turn's `comparison`, and the presenter cheerfully
     re-renders a stale table for a question that had nothing to do with it.
-    `messages` and `selected_product_ids` deliberately survive - they are the
-    conversation, not the scratchpad.
+    `messages`, `selected_product_ids` and `last_results` deliberately survive.
+    They are the conversation, not the scratchpad.
+
+    `last_results` used to be cleared here, which was wrong in a way that only
+    showed once the reducer started honouring these clears at all. The
+    supervisor reads it BEFORE applying this update, so routing kept working and
+    the bug hid; every worker runs AFTER, and saw nothing. The confirmation
+    dialog then had no way to turn `lp-008` into "Forge Studio 16" and showed
+    the id to the user at the exact moment they were deciding whether to buy it.
+
+    What actually needed clearing was the RENDERED output of the last turn:
+    `surface` and `comparison`. Those are what a follow-up question would
+    re-display by mistake. The products themselves are still what is on screen.
     """
     return {
         "intent": None,
         "route_reason": None,
         "refined_query": None,
-        "last_results": None,
         "comparison": None,
         "surface": None,
         "tools_used": None,

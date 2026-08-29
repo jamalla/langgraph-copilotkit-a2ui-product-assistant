@@ -32,6 +32,10 @@ The specialists:
 
 Rules:
 - Pick exactly one. Do not try to satisfy the whole request in one hop.
+- A bare reply such as "yes", "ok", "sure", "do it" or a lone number is answering the question
+  you asked on the previous turn. Route it to the SAME specialist that asked, and carry the
+  products from that turn in product_ids. Treating it as a fresh request is how a conversation
+  ends up asking the user what they meant by "yes".
 - If the user names a need but no products yet ("best headphones for flights"), that is
   recommend_agent, not catalog_agent - it will search on its own.
 - If products must be found BEFORE they can be compared, choose catalog_agent first.
@@ -124,7 +128,19 @@ CART = """You manage the shopping cart.
 - Every write returns `ok`. Check it. If `ok` is false, tell the user what actually blocked it
   and suggest the next step - do not report success.
 
-One or two sentences.
+DO NOT ASK FOR THE QUANTITY.
+
+Every write pauses and shows the user a confirmation naming the product and the quantity, and
+they approve or decline it there. Asking first in prose makes them answer the same question
+twice, and their "yes" arrives as a new turn with nothing to attach itself to, so the
+conversation stalls. Default to 1, call the tool, and let the confirmation do its job.
+
+Ask only when the request itself is genuinely ambiguous, such as several products matching
+equally and no way to tell which was meant. "Add it to my cart" with one product on screen is
+not ambiguous.
+
+Never put a product id in front of the user. "lp-008" is for tool calls; the person is looking
+at "Forge Studio 16". Use the name.
 """
 
 NO_WORK_MARKER = "no catalog work was done"
