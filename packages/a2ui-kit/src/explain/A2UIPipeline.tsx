@@ -34,11 +34,43 @@ export interface A2UITrace {
   data_model?: unknown;
   operations?: unknown[] | null;
   error?: string | null;
+  /** What the subagent was shown, and when it ran. */
+  input_facts?: string | null;
+  input_bytes?: number | null;
+  input_products?: number | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  duration_ms?: number | null;
+  model?: string | null;
 }
 
 interface AgentStateWithTrace {
   a2ui_trace?: A2UITrace;
   surface?: { kind?: string; title?: string; data?: { products?: unknown[] } };
+}
+
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 gap-1.5">
+      <dt className="shrink-0 text-ink-faint">{label}</dt>
+      <dd className="min-w-0 truncate font-medium text-ink-muted">{children}</dd>
+    </div>
+  );
+}
+
+/** Local clock time, plus how long ago, because "when" is usually "was that this answer?". */
+function formatWhen(iso?: string | null): string {
+  if (!iso) return "unknown";
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return "unknown";
+  const seconds = Math.max(0, Math.round((Date.now() - at.getTime()) / 1000));
+  const ago =
+    seconds < 60
+      ? `${seconds}s ago`
+      : seconds < 3600
+        ? `${Math.round(seconds / 60)}m ago`
+        : `${Math.round(seconds / 3600)}h ago`;
+  return `${at.toLocaleTimeString()} · ${ago}`;
 }
 
 function Code({ value, max = 260 }: { value: unknown; max?: number }) {
@@ -229,6 +261,34 @@ export function A2UIPipeline() {
 
       {open && (
         <div className="border-t border-line px-3 py-3">
+          {/* Answers the three questions a generated surface always raises:
+              what was produced, what it was produced FROM, and when. Without
+              the timestamp there is no way to tell whether the panel describes
+              this answer or the one before it. */}
+          <dl className="mb-3 grid grid-cols-2 gap-x-3 gap-y-1 rounded-control border border-line bg-canvas px-2.5 py-2 text-[10.5px]">
+            <Fact label="generated">
+              {components.length} components
+              {trace.operations?.length ? `, ${trace.operations.length} ops` : ""}
+            </Fact>
+            <Fact label="from">
+              {trace.input_products ?? 0} products
+              {trace.input_bytes ? ` · ${Math.round(trace.input_bytes / 100) / 10} KB` : ""}
+            </Fact>
+            <Fact label="when">{formatWhen(trace.started_at)}</Fact>
+            <Fact label="took">
+              {typeof trace.duration_ms === "number"
+                ? `${(trace.duration_ms / 1000).toFixed(1)}s`
+                : "unknown"}
+            </Fact>
+            <Fact label="designed by">{trace.model ?? "unknown"}</Fact>
+            <Fact label="for">{trace.question ? `"${trace.question}"` : "unknown"}</Fact>
+          </dl>
+
+          {trace.error && (
+            <p className="mb-3 rounded-control border border-danger/40 bg-danger/5 px-2.5 py-2 text-[10.5px] leading-relaxed text-danger">
+              <span className="font-medium">No UI was generated.</span> {trace.error}
+            </p>
+          )}
           <div className="mb-2 flex flex-wrap gap-1">
             <Tab active={tab === "source"} onClick={() => setTab("source")}>
               1 · generated from
@@ -253,7 +313,11 @@ export function A2UIPipeline() {
               <p className="mb-2 text-[11px] text-ink-faint">
                 question: <span className="text-ink">{trace.question || "-"}</span>
               </p>
-              <Code value={source} />
+              {/* `source` reads surface.data.products, which a cart or a
+                  comparison does not have. input_facts is the exact payload the
+                  subagent was handed, so it is right for every surface kind and
+                  is the honest answer to "generated from what". */}
+              <Code value={source ?? trace.input_facts ?? "nothing was captured"} max={320} />
             </>
           )}
 

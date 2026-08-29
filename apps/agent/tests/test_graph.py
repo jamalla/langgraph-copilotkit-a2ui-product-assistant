@@ -788,3 +788,95 @@ def test_surface_for_display_reaches_into_a_cart_surface():
     )
     assert out["data"]["note"] == "n"
     assert out["data"]["cart"]["items"][0]["priceLabel"] == "$3,299"
+
+
+# ---------------------------------------------------------------------------
+# Tool-call pairing in the history handed to the A2UI subagent
+# ---------------------------------------------------------------------------
+#
+# OpenAI rejects an assistant message carrying tool_calls unless every
+# tool_call_id has a tool message answering it. The history is reconstructed in
+# the browser by CopilotKit and sent back as graph input, so a call whose result
+# never made it into that reconstruction arrives here unanswered.
+#
+# The turn that creates the orphan succeeds. The NEXT turn dies inside the A2UI
+# subagent, which builds its prompt from the same history, and the user sees a
+# correct text answer with no UI under it.
+
+
+def _msgs():
+    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+    return [
+        HumanMessage(content="show me my cart"),
+        AIMessage(content="", tool_calls=[{"name": "view_cart", "args": {}, "id": "ok"}]),
+        ToolMessage(content="{}", tool_call_id="ok"),
+        AIMessage(content="", tool_calls=[{"name": "render_a2ui", "args": {}, "id": "orphan"}]),
+        AIMessage(content="Your cart has six items."),
+    ]
+
+
+def _pairs_ok(messages) -> bool:
+    issued = {c["id"] for m in messages for c in (getattr(m, "tool_calls", None) or [])}
+    answered = {m.tool_call_id for m in messages if getattr(m, "type", None) == "tool"}
+    return issued == answered
+
+
+def test_an_unanswered_tool_call_is_removed():
+    from agent.a2ui import prune_dangling_tool_calls
+
+    assert not _pairs_ok(_msgs()), "fixture should start invalid"
+    assert _pairs_ok(prune_dangling_tool_calls(_msgs()))
+
+
+def test_answered_calls_and_their_results_survive():
+    from agent.a2ui import prune_dangling_tool_calls
+
+    out = prune_dangling_tool_calls(_msgs())
+    assert [c["id"] for m in out for c in (getattr(m, "tool_calls", None) or [])] == ["ok"]
+    assert any(getattr(m, "type", None) == "tool" for m in out)
+
+
+def test_the_final_answer_is_never_dropped():
+    from agent.a2ui import prune_dangling_tool_calls
+
+    out = prune_dangling_tool_calls(_msgs())
+    assert any("six items" in (m.content or "") for m in out)
+
+
+def test_a_tool_result_with_no_call_is_dropped_too():
+    from agent.a2ui import prune_dangling_tool_calls
+    from langchain_core.messages import HumanMessage, ToolMessage
+
+    out = prune_dangling_tool_calls(
+        [HumanMessage(content="hi"), ToolMessage(content="{}", tool_call_id="ghost")]
+    )
+    assert all(getattr(m, "type", None) != "tool" for m in out)
+
+
+def test_a_partly_answered_message_keeps_only_the_answered_call():
+    from agent.a2ui import prune_dangling_tool_calls
+    from langchain_core.messages import AIMessage, ToolMessage
+
+    out = prune_dangling_tool_calls(
+        [
+            AIMessage(
+                content="looking",
+                tool_calls=[
+                    {"name": "a", "args": {}, "id": "kept"},
+                    {"name": "b", "args": {}, "id": "lost"},
+                ],
+            ),
+            ToolMessage(content="{}", tool_call_id="kept"),
+        ]
+    )
+    assert _pairs_ok(out)
+    assert [c["id"] for m in out for c in (getattr(m, "tool_calls", None) or [])] == ["kept"]
+
+
+def test_history_without_tool_calls_is_untouched():
+    from agent.a2ui import prune_dangling_tool_calls
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    msgs = [HumanMessage(content="hi"), AIMessage(content="hello")]
+    assert prune_dangling_tool_calls(msgs) == msgs

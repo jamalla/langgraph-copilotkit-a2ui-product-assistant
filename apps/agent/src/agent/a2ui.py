@@ -191,6 +191,86 @@ RENDER_DATA_DESCRIPTION = (
 )
 
 
+def prune_dangling_tool_calls(messages: Any) -> Any:
+    """Drop tool calls that never received a result, and results with no call.
+
+    OpenAI enforces a pairing rule: every assistant message carrying
+    `tool_calls` must be followed by a tool message for each `tool_call_id`.
+    Break it and the whole request is rejected:
+
+        400 - An assistant message with 'tool_calls' must be followed by tool
+        messages responding to each 'tool_call_id'. The following tool_call_ids
+        did not have response messages: call_xPmdTUzOyOhRWScbmjuSr6aV
+
+    The history reaching this graph is not ours. CopilotKit reconstructs it in
+    the browser from the event stream and sends it back as graph input, so a
+    tool call whose result never made it into that reconstruction arrives here
+    unanswered. `render_a2ui` is the usual culprit: it is answered by the A2UI
+    middleware rather than by a tool message the client records.
+
+    The damage is not where you would look for it. The turn that produced the
+    orphan succeeds. It is the NEXT turn that dies, inside the A2UI subagent,
+    because the subagent builds its prompt from this same history. The user sees
+    a correct text answer with no UI beneath it and no error in the chat.
+
+    Pruning rather than repairing: a synthesised tool result would be a lie
+    about what happened, and the model reads it.
+    """
+    if not isinstance(messages, list):
+        return messages
+
+    answered = {
+        getattr(m, "tool_call_id", None)
+        for m in messages
+        if getattr(m, "type", None) == "tool"
+    }
+    answered.discard(None)
+
+    kept: list[Any] = []
+    issued: set[str] = set()
+
+    for message in messages:
+        calls = getattr(message, "tool_calls", None)
+
+        if calls:
+            live = [c for c in calls if c.get("id") in answered]
+            if len(live) == len(calls):
+                issued.update(c["id"] for c in live if c.get("id"))
+                kept.append(message)
+                continue
+
+            # Every call on this message went unanswered, and it says nothing
+            # else. Keeping it contributes a rejected request and no meaning.
+            if not live and not (getattr(message, "content", "") or "").strip():
+                continue
+
+            issued.update(c["id"] for c in live if c.get("id"))
+            trimmed = message.model_copy(
+                update={
+                    "tool_calls": live,
+                    # additional_kwargs carries its own copy of the raw call
+                    # payload, and the API reads that too.
+                    "additional_kwargs": {
+                        k: v
+                        for k, v in (getattr(message, "additional_kwargs", {}) or {}).items()
+                        if k != "tool_calls"
+                    },
+                }
+            )
+            kept.append(trimmed)
+            continue
+
+        if getattr(message, "type", None) == "tool":
+            # A result whose call we just removed, or that never had one, is
+            # equally invalid in the other direction.
+            if getattr(message, "tool_call_id", None) not in issued:
+                continue
+
+        kept.append(message)
+
+    return kept
+
+
 def state_with_render_data(state: Any, facts: str) -> dict[str, Any]:
     """Return a copy of state with the turn's findings added as A2UI context.
 
@@ -220,6 +300,11 @@ def state_with_render_data(state: Any, facts: str) -> dict[str, Any]:
         *(ag_ui.get("context") or []),
         {"description": RENDER_DATA_DESCRIPTION, "value": facts},
     ]
+    # The subagent builds its own prompt from this history, so an unanswered
+    # tool call anywhere in it rejects the whole request and no UI is generated.
+    messages = state.get("messages") if isinstance(state, dict) else None
+    if messages is not None:
+        return {**state, "ag-ui": ag_ui, "messages": prune_dangling_tool_calls(messages)}
     return {**state, "ag-ui": ag_ui}
 
 

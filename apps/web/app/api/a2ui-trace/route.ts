@@ -35,6 +35,7 @@ export async function GET(request: Request) {
       const values = await stateOf(threadId);
       return NextResponse.json({
         threadId,
+        running: false,
         trace: values?.a2ui_trace ?? null,
         surface: values?.surface ?? null,
       });
@@ -54,16 +55,60 @@ export async function GET(request: Request) {
     });
     if (!res.ok) return NextResponse.json({ trace: null, reason: "thread search failed" });
 
-    const threads = (await res.json()) as { thread_id: string }[];
+    const threads = (await res.json()) as {
+      thread_id: string;
+      status?: string;
+      updated_at?: string;
+    }[];
+
+    // `status` is what makes the journey panel able to animate. A trace only
+    // exists once a turn has finished, so without knowing that a run is in
+    // flight the panel can show history and nothing else. "busy" on the newest
+    // thread means a turn is executing right now, and the panel steps through
+    // the journey live instead of sitting on the previous answer.
+    const busy = (threads ?? []).find((thread) => thread.status === "busy");
+    const running = Boolean(busy);
+
+    // Real progress, not a simulated one. LangGraph writes state after each
+    // node completes, so a thread mid-run already shows how far it has got:
+    // `intent` means the supervisor decided, `tools_used` means the worker
+    // finished its tool loop, `surface` means it produced something to render.
+    // Reading those is the difference between a panel that animates because a
+    // timer told it to and one that animates because work actually happened.
+    let progress: Record<string, unknown> | null = null;
+    if (busy) {
+      const live = await stateOf(busy.thread_id);
+      if (live) {
+        progress = {
+          intent: live.intent ?? null,
+          routeReason: live.route_reason ?? null,
+          refinedQuery: live.refined_query ?? null,
+          toolsUsed: live.tools_used ?? null,
+          surfaceKind: (live.surface as { kind?: string } | null)?.kind ?? null,
+          hasTrace: Boolean(live.a2ui_trace),
+        };
+      }
+    }
+
     for (const thread of threads ?? []) {
       const values = await stateOf(thread.thread_id);
       if (values?.a2ui_trace) {
         return NextResponse.json({
           threadId: thread.thread_id,
+          running,
+          progress,
+          status: thread.status ?? null,
+          updatedAt: thread.updated_at ?? null,
           trace: values.a2ui_trace,
           surface: values.surface ?? null,
         });
       }
+    }
+
+    if (running) {
+      // A first-ever run, mid-flight: no trace yet, but the panel should show
+      // motion rather than "nothing has been generated".
+      return NextResponse.json({ running: true, progress, trace: null, surface: null });
     }
 
     return NextResponse.json({ trace: null, reason: "no thread has rendered a surface yet" });

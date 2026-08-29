@@ -21,6 +21,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
@@ -950,6 +952,20 @@ def _read_a2ui_envelope(envelope: Any) -> dict[str, Any]:
     return out
 
 
+def _now_iso() -> str:
+    """UTC, to the second. Compared against the chat message beside it."""
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _a2ui_model_name() -> str:
+    """Which model designed the tree.
+
+    Worth recording: the surface is authored by a SECOND model call, and when a
+    layout changes for no apparent reason this is the first thing to check.
+    """
+    return os.getenv("A2UI_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4o"
+
+
 async def _present_with_a2ui(
     state: AgentState,
     config: RunnableConfig,
@@ -1002,6 +1018,13 @@ async def _present_with_a2ui(
             tools=[tool],
         )
 
+    # Timestamps make the panel answer 'when', which matters when you are
+    # staring at a surface wondering whether it is from this question or the
+    # last one. Wall-clock, not a duration, so it can be compared with the
+    # message above it in the chat.
+    started_at = _now_iso()
+    started_perf = time.perf_counter()
+
     trace: dict[str, Any] = {
         "question": question,
         # How the turn was routed - step 4 of the journey panel.
@@ -1021,6 +1044,16 @@ async def _present_with_a2ui(
         "data_model": None,
         "operations": None,
         "error": None,
+        # What the subagent was actually shown. Without this the panel can
+        # say what was produced but not what it was produced FROM, which is
+        # the half that explains a wrong surface.
+        "input_facts": facts[:4000],
+        "input_bytes": len(facts),
+        "input_products": len(((state.get("surface") or {}).get("data") or {}).get("products") or []),
+        "started_at": started_at,
+        "finished_at": None,
+        "duration_ms": None,
+        "model": _a2ui_model_name(),
     }
 
     try:
@@ -1029,6 +1062,9 @@ async def _present_with_a2ui(
     except Exception as exc:
         # A broken surface must never cost the user their answer.
         trace["error"] = f"{type(exc).__name__}: {exc}"
+
+    trace["finished_at"] = _now_iso()
+    trace["duration_ms"] = round((time.perf_counter() - started_perf) * 1000)
 
     # Only the prose goes into `messages`. The surface lives on the wire as its
     # own `a2ui-surface` activity message; adding the tool plumbing here would

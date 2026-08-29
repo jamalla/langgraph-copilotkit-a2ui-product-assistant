@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { stepStatus, type Progress, type RunState } from "./runState";
+
 import { useA2UIKitConfig } from "../config";
 import { JOURNEY, STAGE_LABEL, type JourneyStep, type Stage } from "./journey";
 
@@ -209,6 +211,7 @@ export function JourneyPanel() {
   const [open, setOpen] = useState(false);
   const [trace, setTrace] = useState<Trace | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [run, setRun] = useState<RunState>({ running: false, progress: null });
 
   useEffect(() => {
     if (!open) return;
@@ -216,19 +219,30 @@ export function JourneyPanel() {
     const load = async () => {
       try {
         const res = await fetch(traceEndpoint, { cache: "no-store" });
-        const data = (await res.json()) as { trace?: Trace };
-        if (alive) setTrace(data?.trace ?? null);
+        const data = (await res.json()) as {
+          trace?: Trace;
+          running?: boolean;
+          progress?: Progress | null;
+        };
+        if (!alive) return;
+        // Keep the last trace on screen while the next run is in flight. The
+        // alternative is the panel emptying itself the moment you ask
+        // something, which loses the very comparison it exists to support.
+        if (data?.trace) setTrace(data.trace);
+        setRun({ running: Boolean(data?.running), progress: data?.progress ?? null });
       } catch {
         /* the agent may not be running */
       }
     };
     void load();
-    const timer = setInterval(load, tracePollMs);
+    // A turn takes a few seconds end to end, so the idle poll is far too slow
+    // to show anything moving. Tighten it only while something is happening.
+    const timer = setInterval(load, run.running ? 600 : tracePollMs);
     return () => {
       alive = false;
       clearInterval(timer);
     };
-  }, [open, traceEndpoint, tracePollMs]);
+  }, [open, traceEndpoint, tracePollMs, run.running]);
 
   if (!open) {
     return (
@@ -276,6 +290,7 @@ export function JourneyPanel() {
           const prev = JOURNEY[i - 1];
           const crossing = !prev || prev.stage !== step.stage;
           const isOpen = expanded === step.id;
+          const status = stepStatus(i, run);
           const hint = glance(step, trace);
 
           return (
@@ -287,14 +302,38 @@ export function JourneyPanel() {
                 </p>
               )}
 
-              <div className={`mb-1.5 rounded-card border ${STAGE_STYLE[step.stage]} px-2.5 py-2`}>
+              <div
+                className={`mb-1.5 rounded-card border px-2.5 py-2 transition-colors ${
+                  status === "active"
+                    ? "border-brand bg-brand/5 ring-1 ring-brand/30"
+                    : status === "pending"
+                      ? `${STAGE_STYLE[step.stage]} opacity-45`
+                      : STAGE_STYLE[step.stage]
+                }`}
+              >
                 <button
                   type="button"
                   onClick={() => setExpanded(isOpen ? null : step.id)}
                   className="flex w-full items-start gap-2 text-left"
                 >
-                  <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-pill bg-ink/10 font-mono text-[9px] text-ink">
-                    {i + 1}
+                  <span
+                    className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded-pill font-mono text-[9px] ${
+                      status === "active"
+                        ? "bg-brand text-brand-ink"
+                        : status === "done"
+                          ? "bg-positive/20 text-positive"
+                          : "bg-ink/10 text-ink"
+                    }`}
+                  >
+                    {/* A running step pulses, a finished one is ticked. Both are
+                        driven by graph state rather than by a timer. */}
+                    {status === "active" ? (
+                      <span className="size-1.5 animate-ping rounded-pill bg-brand-ink" />
+                    ) : status === "done" ? (
+                      "✓"
+                    ) : (
+                      i + 1
+                    )}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs font-medium text-ink">{step.title}</span>
