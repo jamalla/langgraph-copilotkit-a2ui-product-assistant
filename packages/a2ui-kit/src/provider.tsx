@@ -10,6 +10,7 @@ import {
 import { A2UIKitConfigProvider, type A2UIKitConfig, useA2UIKitConfig } from "./config";
 import { ChatPipelineSlot } from "./chat/ChatPipelineSlot";
 import { ChatResizer } from "./chat/ChatResizer";
+import { ChatSessionControls } from "./chat/ChatSessionControls";
 import { findConfirmWrite } from "./agent-state";
 import { JourneyPanel } from "./explain/JourneyPanel";
 
@@ -161,6 +162,7 @@ export function A2UIChatProvider({
           labels={{ chatInputPlaceholder: inputPlaceholder }}
         />
         <ChatResizer />
+        <ChatSessionControls />
         <ChatPipelineSlot />
         {showJourney && <JourneyPanel />}
       </A2UIKitConfigProvider>

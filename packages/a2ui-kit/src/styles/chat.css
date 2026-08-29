@@ -161,3 +161,89 @@ div[class*="z-[1200]"] > * {
   max-width: 100%;
   overflow-x: auto;
 }
+
+
+/* ===========================================================================
+   ONE SCROLL REGION, AND ONLY ONE
+   ---------------------------------------------------------------------------
+   The complaint was 'the inner scroll is annoying'. It is not that the chat
+   scrolls - a conversation grows without limit, so something has to. It is
+   that it scrolled in more than one place at once: the message list scrolled,
+   and a generated surface inside it clipped its own content and scrolled
+   again. Nested scrollers are what feel broken. You drag, the wrong thing
+   moves, and content you can see is unreachable.
+
+   So: the message list is the ONLY vertical scroller. Everything inside it
+   takes its natural height and pushes the list taller.
+   =========================================================================== */
+.copilotKitMessages .a2ui-surface,
+.copilotKitMessages .copilotKitMessage,
+.copilotKitMessages .copilotKitMessage * {
+  max-height: none !important;
+  overflow-y: visible !important;
+}
+
+/* Horizontal is the exception, and stays. A wide comparison table has nowhere
+   to wrap to, and a sideways scroll inside the table is far better than one
+   that shoves the whole window sideways. */
+.copilotKitMessages .a2ui-surface table {
+  overflow-x: auto !important;
+}
+
+/* ===========================================================================
+   CHROME
+   ---------------------------------------------------------------------------
+   Restrained on purpose: the generated surfaces are the content, and chat
+   chrome that competes with them makes the whole thing look busier than it is.
+   =========================================================================== */
+div[class*="z-[1200]"] {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, .04),
+    0 24px 48px -24px rgba(0, 0, 0, .28) !important;
+  border: 1px solid var(--line) !important;
+}
+
+/* Room at the top for the controls portalled into the header, so they never
+   sit on top of the title. */
+.copilotKitPopup .copilotKitChat {
+  padding-top: 4px;
+}
+
+/* Give the message list breathing room and a floor under the last message, so
+   the newest answer is never flush against the input box. */
+.copilotKitMessages {
+  padding: 12px 14px 20px !important;
+  scroll-padding-bottom: 20px;
+}
+
+/* Generated surfaces read as cards belonging to the app, not as raw output
+   dropped into the transcript. */
+.copilotKitMessages .a2ui-surface {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card, 14px);
+  background: var(--surface);
+  padding: 12px;
+  margin: 6px 0 2px;
+}
+
+/* The injected panels are chrome, so they sit back: quieter background, a
+   hairline against the conversation, no shadow. */
+#a2ui-tools-slot,
+#a2ui-pipeline-slot {
+  background: var(--surface-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .copilotKitMessages .a2ui-surface {
+    animation: a2ui-surface-in 220ms cubic-bezier(.2, .7, .3, 1) both;
+  }
+}
+
+/* Arrives rather than appears. 4px and a fade: enough to read as new, not
+   enough to be a performance. */
+@keyframes a2ui-surface-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}

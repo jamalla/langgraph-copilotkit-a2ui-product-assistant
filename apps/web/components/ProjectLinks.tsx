@@ -1,6 +1,13 @@
 const REPO_URL = "https://github.com/jamalla/langgraph-copilotkit-a2ui-product-assistant";
 
 /**
+ * The styling guide for whoever maintains the generated UI. Private until it
+ * is shared from the artifact page, so a visitor without access sees a sign-in
+ * screen rather than the article.
+ */
+const GUIDE_URL = "https://claude.ai/code/artifact/a38e0e14-6380-4b40-91f8-59fde7b407b8";
+
+/**
  * Header links: the interactive explainer, and the source.
  *
  * Server component - these are two anchors with no state, so shipping a client
@@ -41,6 +48,30 @@ export function ProjectLinks() {
         >
           <rect x="2.5" y="4" width="19" height="16" rx="2.5" />
           <path d="M10 9.2v5.6l4.6-2.8z" fill="currentColor" stroke="none" />
+        </svg>
+      </a>
+
+      <a
+        href={GUIDE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Four levers on generated UI: how to style what the agent builds"
+        aria-label="Read the generated-UI styling guide in a new tab"
+        className={BUTTON}
+      >
+        {/* An open book: a guide, distinct from the player and the source. */}
+        <svg
+          viewBox="0 0 24 24"
+          className="size-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 6.5C10.5 5.2 8.6 4.6 6 4.6a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1c2.6 0 4.5.6 6 1.9 1.5-1.3 3.4-1.9 6-1.9a1 1 0 0 0 1-1v-11a1 1 0 0 0-1-1c-2.6 0-4.5.6-6 1.9z" />
+          <path d="M12 6.5v12.9" />
         </svg>
       </a>
 
