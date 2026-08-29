@@ -470,3 +470,53 @@ def test_a2ui_path_returns_only_the_prose():
     tail = source[source.index("return {") :]
     assert "AIMessage(content=prose" in tail
     assert "ToolMessage" not in tail
+
+
+# ------------------------------------------------ the teaching journey panel
+
+
+def test_trace_carries_every_step_the_journey_panel_shows():
+    """The left-hand panel walks 12 hops and fills each with live data.
+
+    Each field here backs a specific step, so dropping one silently empties that
+    step in the UI rather than failing anything.
+    """
+    import inspect
+
+    from agent import nodes
+
+    source = inspect.getsource(nodes._present_with_a2ui)
+    for field in (
+        '"question"',          # step 1  — what was asked
+        '"intent"',            # step 4  — how it routed
+        '"route_reason"',
+        '"refined_query"',
+        '"tools_used"',        # step 5  — which MCP tools ran
+        '"surface_kind"',      # step 6  — the data the worker wrote
+        '"surface_title"',
+        '"product_count"',
+        '"components"',        # step 8  — the tree the subagent invented
+        '"data_model"',        # step 10 — values bound by path
+        '"operations"',        # step 9  — the three A2UI ops
+    ):
+        assert field in source, f"a2ui_trace is missing {field}"
+
+
+def test_tool_summary_is_a_summary_not_the_payload():
+    """A search result is a whole catalog slice; inlining it would swamp the panel."""
+    from agent.nodes import _tool_summary
+
+    out = _tool_summary(
+        [
+            ("search_products", {"count": 4, "products": [{"id": "hp-001"}] * 4}),
+            ("list_categories", {"total_products": 30, "category_count": 4}),
+            ("add_to_cart", {"ok": False, "error": "out of stock"}),
+        ]
+    )
+    assert out[0] == {"tool": "search_products", "result": "4 products"}
+    assert "30 products" in out[1]["result"]
+    assert out[2]["result"].startswith("refused")
+
+    # No raw payloads leaked through.
+    assert "products" not in str(out[0].get("products", ""))
+    assert all(set(e) <= {"tool", "result"} for e in out)

@@ -68,7 +68,7 @@ the catalog file, your API key and all three ports before anything starts.
 | `pnpm setup` | install + sync + preflight, from a fresh clone |
 | `pnpm dev` | all three services, colour-prefixed |
 | `pnpm dev:web` / `dev:agent` / `dev:mcp` | one service at a time |
-| `pnpm check` | typecheck + all 57 tests |
+| `pnpm check` | typecheck + all 59 tests |
 | `pnpm smoke` | load the running app in headless Edge, fail on any console error |
 | `pnpm check:all` | `check` + `smoke` (needs `pnpm dev` running) |
 | `pnpm test:mcp` / `test:agent` | one suite |
@@ -76,6 +76,36 @@ the catalog file, your API key and all three ports before anything starts.
 | `pnpm build` | production build of the web app |
 
 ---
+
+## Learning it: the journey panel
+
+Click **"How A2UI works"** on the left edge. It walks the twelve hops from your question to
+rendered React, names the file responsible for each, and fills every step with what actually
+happened on your last turn:
+
+```
+BROWSER            1  You ask a question              provider.tsx
+NEXT.JS RUNTIME    2  Runtime attaches the catalog    api/copilotkit/[[...rest]]/route.ts
+                   3  AG-UI carries it to the graph   @ag-ui/langgraph
+LANGGRAPH AGENT    4  Supervisor picks a specialist   nodes.py → supervisor()
+                   5  A worker queries the catalog    nodes.py · mcp/server.py
+                   6  The worker writes DATA          state.py → SurfaceSpec
+                   7  The presenter writes the answer nodes.py → _present_with_a2ui()
+                   8  A SECOND model designs the UI   a2ui.py → render_tool()
+                   9  Three operations go on the wire A2UI v0.9 envelope
+                  10  Values bind into the tree       updateDataModel
+BACK IN BROWSER   11  Middleware paints the surface   @ag-ui/a2ui-middleware
+                  12  React mounts it, in your theme  @copilotkit/a2ui-renderer
+```
+
+Expanding a step shows what happens, the file path, the trap people hit there, and the live data —
+step 4 shows the routing decision and refined query, step 5 the MCP calls and their results, step 8
+the component types the subagent chose.
+
+The colour bands mark the three boundaries, and most confusion in this stack is about which side of
+one you are on: browser → runtime, runtime → agent, agent → browser.
+
+On by default in development (`showJourney` on `<A2UIChatProvider>`), off in production.
 
 ## How a single turn actually flows
 

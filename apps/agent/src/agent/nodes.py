@@ -334,6 +334,30 @@ async def _run_tool_loop(
     )
 
 
+def _tool_summary(collected: list[tuple[str, Any]]) -> list[dict[str, Any]]:
+    """One line per tool call, for the journey panel.
+
+    Results are summarised rather than included: a search result is the whole
+    catalog slice and would dwarf everything else in the panel.
+    """
+    summary: list[dict[str, Any]] = []
+    for name, payload in collected:
+        entry: dict[str, Any] = {"tool": name}
+        if isinstance(payload, dict):
+            if "count" in payload:
+                entry["result"] = f"{payload['count']} products"
+            elif "total_products" in payload:
+                entry["result"] = f"{payload['total_products']} products, {payload.get('category_count')} categories"
+            elif payload.get("ok") is not None:
+                entry["result"] = "ok" if payload["ok"] else f"refused: {payload.get('error', '')[:60]}"
+            elif "name" in payload:
+                entry["result"] = str(payload["name"])
+            elif "rows" in payload:
+                entry["result"] = f"{len(payload['rows'])} spec rows"
+        summary.append(entry)
+    return summary
+
+
 def _results_from(collected: list[tuple[str, Any]], tool_name: str) -> Any | None:
     """Most recent result for a given tool, or None."""
     for name, payload in reversed(collected):
@@ -472,6 +496,7 @@ async def catalog_agent(state: AgentState, config: RunnableConfig) -> dict[str, 
     return {
         "last_results": products,
         "surface": surface,
+        "tools_used": _tool_summary(collected),
         "selected_product_ids": [p["id"] for p in products[:4]],
     }
 
@@ -499,6 +524,7 @@ async def compare_agent(state: AgentState, config: RunnableConfig) -> dict[str, 
     return {
         "comparison": matrix if isinstance(matrix, dict) else None,
         "surface": surface,
+        "tools_used": _tool_summary(collected),
         "selected_product_ids": (
             [p["id"] for p in matrix["products"]]
             if isinstance(matrix, dict) and matrix.get("ok")
@@ -527,6 +553,7 @@ async def recommend_agent(state: AgentState, config: RunnableConfig) -> dict[str
     return {
         "last_results": products,
         "surface": surface,
+        "tools_used": _tool_summary(collected),
         "selected_product_ids": [p["id"] for p in products[:3]],
     }
 
@@ -555,7 +582,7 @@ async def cart_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any
         "title": "Your cart",
         "data": {"cart": cart, "note": note},
     }
-    return {"surface": surface}
+    return {"surface": surface, "tools_used": _tool_summary(collected)}
 
 
 # -------------------------------------------------------------------- presenter
@@ -767,6 +794,14 @@ async def _present_with_a2ui(
 
     trace: dict[str, Any] = {
         "question": question,
+        # How the turn was routed — step 4 of the journey panel.
+        "intent": state.get("intent"),
+        "route_reason": state.get("route_reason"),
+        "refined_query": state.get("refined_query"),
+        # What the worker actually did — step 5.
+        "tools_used": state.get("tools_used") or [],
+        "surface_title": (state.get("surface") or {}).get("title"),
+        "product_count": len(((state.get("surface") or {}).get("data") or {}).get("products") or []),
         "surface_kind": (state.get("surface") or {}).get("kind"),
         "catalog_id": None,
         "surface_id": None,

@@ -30,6 +30,8 @@ export { ChatResizer } from "./chat/ChatResizer";
 export { ChatPipelineSlot } from "./chat/ChatPipelineSlot";
 export { ToolList } from "./chat/ToolList";
 export { A2UIPipeline, type A2UITrace } from "./explain/A2UIPipeline";
+export { JourneyPanel } from "./explain/JourneyPanel";
+export { JOURNEY, STAGE_LABEL, type JourneyStep, type Stage } from "./explain/journey";
 export { useSharedSelection } from "./hooks/useSharedSelection";
 
 export {

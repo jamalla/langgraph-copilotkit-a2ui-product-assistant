@@ -6,6 +6,7 @@ import { A2UIKitConfigProvider, type A2UIKitConfig, useA2UIKitConfig } from "./c
 import { ChatPipelineSlot } from "./chat/ChatPipelineSlot";
 import { ChatResizer } from "./chat/ChatResizer";
 import { findConfirmWrite } from "./agent-state";
+import { JourneyPanel } from "./explain/JourneyPanel";
 
 /**
  * The whole generative-UI layer, in one component.
@@ -87,6 +88,14 @@ export interface A2UIChatProviderProps extends A2UIKitConfig {
   children?: React.ReactNode;
   /** Your page. Rendered inside the provider so hooks work anywhere. */
   app: React.ReactNode;
+  /**
+   * Show the left-hand "How A2UI works" panel — the twelve hops from question
+   * to rendered UI, each naming the file that does the work, filled in with
+   * what actually happened on the last turn.
+   *
+   * A teaching aid, so it defaults ON in development and off in production.
+   */
+  showJourney?: boolean;
 }
 
 export function A2UIChatProvider({
@@ -94,6 +103,7 @@ export function A2UIChatProvider({
   inputPlaceholder = "Ask me anything…",
   children,
   app,
+  showJourney = process.env.NODE_ENV !== "production",
   ...config
 }: A2UIChatProviderProps) {
   return (
@@ -108,6 +118,7 @@ export function A2UIChatProvider({
         />
         <ChatResizer />
         <ChatPipelineSlot />
+        {showJourney && <JourneyPanel />}
       </A2UIKitConfigProvider>
     </CopilotKitProvider>
   );

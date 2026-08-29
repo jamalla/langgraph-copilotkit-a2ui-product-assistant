@@ -94,6 +94,13 @@ class AgentState(CopilotKitState, AgUiChannels):
     surface: Annotated[SurfaceSpec | None, last_write_wins]
     """The presenter's instructions. Becomes the A2UI data model in Part 4."""
 
+    tools_used: Annotated[list[dict[str, Any]] | None, last_write_wins]
+    """Which MCP tools the worker called this turn, and with what arguments.
+
+    Explanatory, like `a2ui_trace`: the agent never reads it. It exists so the
+    journey panel can show the step where the catalog was actually queried.
+    """
+
     a2ui_trace: Annotated[dict[str, Any] | None, last_write_wins]
     """How the last surface was built, for the pipeline panel in the UI.
 
@@ -124,5 +131,6 @@ def empty_turn() -> dict[str, Any]:
         "last_results": None,
         "comparison": None,
         "surface": None,
+        "tools_used": None,
         "a2ui_trace": None,
     }
