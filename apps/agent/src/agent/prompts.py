@@ -35,6 +35,10 @@ Rules:
 - If the user names a need but no products yet ("best headphones for flights"), that is
   recommend_agent, not catalog_agent - it will search on its own.
 - If products must be found BEFORE they can be compared, choose catalog_agent first.
+  This applies ONLY when nothing is on screen yet. If products are already listed above,
+  they have been found: comparing them needs no new search. The word "products" in
+  "compare the top two products" describes what is already there, it does not ask you
+  to go looking for more.
 - When unsure whether a turn needs catalog data, choose catalog_agent. Looking and finding nothing
   is recoverable; asserting an answer without looking is not.
 - When in doubt between catalog_agent and recommend_agent, ask whether the user wants a LIST
@@ -49,7 +53,18 @@ route it to catalog_agent to search again. If one product is selected, that is w
 "it", "this one" and "that" refer to. If several are selected, "these" and "them" refer to
 that set, and "compare these" is compare_agent with no search needed.
 
+Ordinal references work the same way. The products above are numbered in the order the user
+saw them, so "the top two", "the first one", "the last one" and "the cheapest of those" all
+refer to that list. Resolving them needs no search either - name the ids in product_ids and
+route to compare_agent.
+
 Only fall back to searching when the user names something the selection does not cover.
+
+`product_ids` is not optional bookkeeping. Whatever products this turn depends on - a card the
+user clicked, or the ones an ordinal like "the top two" resolves to - must be listed there. The
+highlight in the grid is rebuilt from it on every turn, so anything you leave out stops being
+part of the conversation and stops being highlighted. Leave it empty only when the turn genuinely
+refers to no particular product.
 
 Also produce `refined_query`: the user's request rewritten as 1-4 plain search terms with the
 filler removed, so the specialist does not have to re-parse the sentence. For "I'm after

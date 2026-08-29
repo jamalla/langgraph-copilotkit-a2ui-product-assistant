@@ -43,11 +43,24 @@ class SurfaceSpec(TypedDict, total=False):
 def last_write_wins(current: Any, incoming: Any) -> Any:
     """Reducer for per-turn scratch values.
 
-    Without an explicit reducer LangGraph would still overwrite, but writing it
-    down makes the intent visible: these fields describe THIS turn only and are
-    expected to be replaced wholesale, unlike `messages`, which accumulates.
+    These fields describe THIS turn only and are replaced wholesale, unlike
+    `messages`, which accumulates.
+
+    This used to read `incoming if incoming is not None else current`, which
+    looks like a sensible guard and quietly made `empty_turn()` do nothing at
+    all. Every field it clears is set to None, and None was exactly the value
+    the guard threw away.
+
+    So the state it was written to reset never reset. A comparison from three
+    turns ago stayed in `surface` and the presenter re-rendered it under an
+    unrelated question; a highlight stayed lit in the grid under an answer it
+    had nothing to do with. No error, and each individual node was correct.
+
+    The guard was never needed: LangGraph calls a reducer only for keys a node
+    actually returns, so a node that does not mention a field cannot clobber it
+    with None by accident. Returning `incoming` is both simpler and right.
     """
-    return incoming if incoming is not None else current
+    return incoming
 
 
 # `ag-ui` is not a valid Python identifier, so this channel has to be declared

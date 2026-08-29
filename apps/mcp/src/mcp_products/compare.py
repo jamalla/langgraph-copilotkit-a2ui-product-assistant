@@ -108,6 +108,11 @@ def compare(product_ids: list[str]) -> dict[str, Any]:
             {
                 "id": p["id"],
                 "name": p["name"],
+                # Carried through so a comparison surface can show the product
+                # photo. Without it the compare view is the only place in the
+                # app with no imagery, for no reason anyone could see.
+                "imageUrl": p.get("imageUrl"),
+                "imageAlt": p.get("imageAlt"),
                 "brand": p["brand"],
                 "category": p["category"],
                 "price": p["price"],

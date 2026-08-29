@@ -665,3 +665,51 @@ def _raw():
         "specs": {"battery_hours": 32},
         "tags": [],
     }
+
+
+# ---------------------------------------------------------------------------
+# Per-turn state actually resets
+# ---------------------------------------------------------------------------
+#
+# The reducer used to read `incoming if incoming is not None else current`,
+# which threw away exactly the None that empty_turn() uses to clear. So the
+# function written to reset per-turn state never reset anything, and a surface
+# from an earlier turn was re-rendered under an unrelated question. No error,
+# and every individual node correct.
+
+
+def test_the_reducer_lets_a_deliberate_clear_through():
+    from agent.state import last_write_wins
+
+    assert last_write_wins(["hp-001"], None) is None
+    assert last_write_wins(None, ["hp-002"]) == ["hp-002"]
+    assert last_write_wins(["hp-001"], ["hp-002"]) == ["hp-002"]
+
+
+def test_empty_turn_clears_every_scratch_field_through_the_reducer():
+    from agent.state import empty_turn, last_write_wins
+
+    stale = {
+        "intent": "compare",
+        "surface": {"kind": "compare_table"},
+        "comparison": {"ok": True},
+        "tools_used": [{"tool": "compare_products"}],
+        "a2ui_trace": {"components": 12},
+        "last_results": [{"id": "hp-001"}],
+        "route_reason": "because",
+        "refined_query": "anc headphones",
+    }
+    cleared = empty_turn()
+    for field, previous in stale.items():
+        assert field in cleared, f"empty_turn forgot {field}"
+        assert last_write_wins(previous, cleared[field]) is None, (
+            f"{field} survived a turn it should not have"
+        )
+
+
+def test_a_surface_cannot_outlive_the_turn_that_made_it():
+    # The user-visible symptom: ask a question that needs no catalog data and
+    # the previous comparison is still on screen underneath the answer.
+    from agent.state import empty_turn, last_write_wins
+
+    assert last_write_wins({"kind": "compare_table"}, empty_turn()["surface"]) is None

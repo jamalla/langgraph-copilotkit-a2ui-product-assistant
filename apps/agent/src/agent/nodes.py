@@ -448,6 +448,40 @@ class Route(BaseModel):
     )
 
 
+def _known_products_block(state: AgentState) -> str:
+    """What is already on screen, by NAME and in the order it was shown.
+
+    This used to pass bare ids: ['hp-006', 'hp-002', 'hp-005', 'hp-008'].
+    Two things went wrong with that, and both surfaced as bad routing rather
+    than as an error.
+
+    Ids carry no meaning, so "compare the top two products" did not look like a
+    reference to anything already on screen. It read as a fresh catalog request,
+    routed to search, and returned a product that was not in the previous
+    results at all.
+
+    And "the top two" is a claim about ORDER. A set of ids has none, so the
+    phrase had nothing to resolve against. Numbering them gives "the top two",
+    "the first one" and "the last one" something to mean.
+    """
+    results = state.get("last_results") or []
+    selected = state.get("selected_product_ids") or []
+
+    if results:
+        listing = "\n".join(
+            f"  {i}. {p.get('name')} ({p.get('id')})"
+            for i, p in enumerate(results[:8], start=1)
+        )
+        block = "Products already on screen, in the order they were shown:\n" + listing
+        if selected and set(selected) != {p.get("id") for p in results[:8]}:
+            block += f"\n\nOf those, the user has selected: {selected}"
+        return block
+
+    if selected:
+        return f"Products already under discussion: {selected}"
+    return "Products already under discussion: none"
+
+
 async def supervisor(
     state: AgentState, config: RunnableConfig
 ) -> Command[SupervisorDestination]:
@@ -480,15 +514,13 @@ async def supervisor(
         f"{'User' if isinstance(m, HumanMessage) else 'Assistant'}: {m.text or ''}"
         for m in _conversation_tail(messages)
     )
-    known = state.get("selected_product_ids") or []
-
     route: Route = await model.ainvoke(
         [
             SystemMessage(content=prompts.SUPERVISOR),
             HumanMessage(
                 content=(
                     f"Conversation so far:\n{history}\n\n"
-                    f"Products already under discussion: {known or 'none'}\n\n"
+                    f"{_known_products_block(state)}\n\n"
                     "Route the most recent user turn."
                 )
             ),
@@ -504,8 +536,18 @@ async def supervisor(
         "route_reason": route.reason,
         "refined_query": route.refined_query or _last_user_text(messages),
     }
-    if route.product_ids:
-        update["selected_product_ids"] = route.product_ids
+    # Set on EVERY turn, not only when the router names products.
+    #
+    # Selection used to survive untouched across turns, so a highlight from
+    # three questions ago stayed lit under an answer that had nothing to do with
+    # it, and a turn that found nothing left the previous turn's products
+    # highlighted as though they were the answer.
+    #
+    # Clearing it here is safe because the router is required to echo the ids it
+    # relied on: a click the user made, or the products it resolved "the top
+    # two" against. Anything it does not name was not part of this turn, and a
+    # worker that finds products overwrites this a moment later anyway.
+    update["selected_product_ids"] = route.product_ids or None
 
     return Command(goto=route.next_agent, update=update)
 

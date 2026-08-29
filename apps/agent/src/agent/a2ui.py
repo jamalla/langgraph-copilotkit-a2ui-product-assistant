@@ -305,14 +305,26 @@ def display_product(product: dict[str, Any]) -> dict[str, Any]:
     price = product.get("price")
     currency = "$" if product.get("currency", "USD") == "USD" else ""
     rating = product.get("rating")
-    in_stock = bool(product.get("inStock"))
+
+    # Two spellings reach this function. search_products returns the raw catalog
+    # row with `inStock`; compare_products returns its own projection with
+    # `in_stock`. Reading only the first turned every compared product into
+    # "Out of stock", because a missing key is falsey and nothing complains.
+    if "inStock" in product:
+        in_stock = bool(product["inStock"])
+    elif "in_stock" in product:
+        in_stock = bool(product["in_stock"])
+    else:
+        in_stock = True
+
+    description = product.get("shortDescription") or product.get("summary")
 
     out: dict[str, Any] = {
         "id": product.get("id"),
         "name": product.get("name"),
         "imageUrl": product.get("imageUrl"),
         "imageAlt": product.get("imageAlt") or product.get("name"),
-        "description": product.get("shortDescription"),
+        "description": description,
         "priceLabel": f"{currency}{price:,.0f}" if isinstance(price, (int, float)) else "",
         "brandLine": " · ".join(
             part
@@ -355,9 +367,29 @@ def surface_for_display(surface: dict[str, Any] | None) -> dict[str, Any] | None
     if not isinstance(data, dict):
         return surface
     products = data.get("products")
-    if not isinstance(products, list):
-        return surface
-    return {
-        **surface,
-        "data": {**data, "products": [display_product(p) for p in products]},
-    }
+    if isinstance(products, list):
+        return {
+            **surface,
+            "data": {**data, "products": [display_product(p) for p in products]},
+        }
+
+    # A comparison surface keeps its products one level down, under
+    # `comparison`. Missing that branch meant compare views were the only place
+    # in the app that showed no photograph and an unformatted price, which read
+    # as a rendering bug rather than a projection that did not run.
+    comparison = data.get("comparison")
+    if isinstance(comparison, dict) and isinstance(comparison.get("products"), list):
+        return {
+            **surface,
+            "data": {
+                **data,
+                "comparison": {
+                    **comparison,
+                    "products": [
+                        display_product(p) for p in comparison["products"]
+                    ],
+                },
+            },
+        }
+
+    return surface
