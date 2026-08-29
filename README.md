@@ -46,6 +46,7 @@ It ships TypeScript source rather than a build output - `transpilePackages: ["@a
 ## Contents
 
 - [Quick start](#quick-start)
+- [Prompts worth trying](#prompts-worth-trying)
 - [Anatomy: three services and one library](#anatomy-three-services-and-one-library)
 - [Learning it: the explainer](#learning-it-the-explainer)
 - [Learning it: the journey panel](#learning-it-the-journey-panel)
@@ -97,6 +98,90 @@ the catalog file, your API key and all three ports before anything starts.
 | `pnpm build` | production build of the web app |
 
 ---
+
+## Prompts worth trying
+
+Every prompt below is checked against the seeded catalog, so the expected result
+is a fact rather than a guess. If one of them misbehaves, that is a real
+regression and worth investigating.
+
+Before any of this: the two write tools pause for confirmation, and the Python
+services do not hot reload. If a change of yours seems to have no effect, see
+[I changed Python code and nothing happened](#i-changed-python-code-and-nothing-happened).
+
+### Start here
+
+| Prompt | What you should see |
+|---|---|
+| `how many products do I have?` | 30 products across 4 categories. Prose only, no surface: nothing was retrieved that needs rendering |
+| `show me noise cancelling headphones under $300` | A generated grid. Five headphones qualify |
+| `compare the top two` | A comparison surface. "The top two" resolves from the previous turn, with nothing named again |
+| `add the cheapest one to my cart` | The graph pauses and asks you to confirm. Nothing is written until you say yes |
+
+### One prompt per route
+
+The supervisor picks exactly one worker per turn. These four force each in turn,
+and the left panel shows which one was chosen and why.
+
+| Prompt | Routes to | Expected |
+|---|---|---|
+| `what categories are there?` | catalog | 4 categories with counts |
+| `compare the Aether NC 900 and the Quiet Comfort Elite` | compare | A fact-only matrix, no winner declared by the tool |
+| `I edit photos on a laptop all day, what should I buy?` | recommend | A ranked answer that explains the tradeoff |
+| `what is in my cart?` | cart | Cart contents, and no confirmation prompt, because reading changes nothing |
+
+### Generative UI
+
+| Prompt | What it exercises |
+|---|---|
+| `show me every mechanical keyboard` | A multi-card grid. Resize or maximise the chat and the cards reflow, because the column count is CSS, not something the model decided |
+| `show me the Panorama 34 UW` | A single result. It should not stretch to full width |
+| `show me all monitors` | Seven cards, each with a photo, a formatted price, and per-product stock |
+
+Open **How this UI was generated** above the chat on any of these to see the
+component tree the model produced and the data it was bound to.
+
+### Human in the loop
+
+| Prompt | Expected |
+|---|---|
+| `add Pulse Buds Lite to my cart` | A confirmation naming the product, not `hp-006` |
+| Then click **No** | The agent says it has not added it, rather than claiming success |
+| `add two Aether NC 700 to my cart` then **Yes, do it** | Confirmed, then the cart reflects it |
+| `remove it from my cart` | A second confirmation. Both write tools pause, not just the first |
+
+Reload the page while a confirmation is open. It is still there. The pause lives
+in the checkpointer, not in the browser. See
+[Human in the loop](#human-in-the-loop-confirming-writes).
+
+### Shared state and the frontend tool
+
+| Prompt | Expected |
+|---|---|
+| Click a product card, then ask `is this one good for long flights?` | It answers about the card you clicked. No product is named in the question |
+| `highlight the out of stock products` | Exactly one card highlights: Nomad Over-Ear 2, the only unavailable product |
+| `scroll to the Forge Studio 16` | The catalog behind the chat scrolls to it. That is `highlight_product`, a tool defined in React and executed in your browser |
+
+### The traps
+
+The catalog is seeded with cases that a fluent model gets wrong. These are the
+prompts most worth re-running after you change a prompt or a model.
+
+| Prompt | The trap |
+|---|---|
+| `which headphones have the worst battery life?` | `Studio Ref 80` reports `battery_hours: 0`. It is a **wired** reference headphone with no battery. Reading `0 < 24 < 32` and concluding "terrible battery" is confident, fluent and wrong. The tool ships a caveat saying so |
+| `what is the cheapest thing you sell?` | Silent Office 104 at $69, a keyboard. Answers that quietly restrict themselves to one category are wrong |
+| `compare the Silent Office 104 and the Clicky 98 Retro` | Both report `battery_hours: 0` because both are wired. A spec that is identical across everything on screen cannot help anyone choose, and should not be shown |
+| `what is your best laptop?` | "Best" is unstated. A good answer asks what for, or states the criterion it picked |
+
+### Edge cases
+
+| Prompt | Expected |
+|---|---|
+| `show me headphones under $10` | Nothing matches. It should say so plainly, not invent a product |
+| `do you sell smartphones?` | No. The catalog is laptops, headphones, monitors and keyboards |
+| `tell me about the Sony WH-1000XM4` | Not in the catalog. Inventing one is precisely the failure recorded under [Gotchas](#gotchas-found-the-hard-way), so this is worth re-running after any prompt change |
+| `add 500 units of lp-001 to my cart` | The confirmation should state the quantity before you approve it |
 
 ## Anatomy: three services and one library
 
