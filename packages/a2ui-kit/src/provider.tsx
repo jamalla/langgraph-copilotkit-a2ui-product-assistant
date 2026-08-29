@@ -211,7 +211,7 @@ export function A2UIChatProvider({
 
   return (
     <CopilotKitProvider runtimeUrl={runtimeUrl}>
-      <A2UIKitConfigProvider config={config}>
+      <A2UIKitConfigProvider config={{ ...config, threadId }}>
         <ConfirmWrites />
         <ToolCallChips />
         {children}

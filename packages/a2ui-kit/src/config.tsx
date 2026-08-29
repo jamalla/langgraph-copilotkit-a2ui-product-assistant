@@ -28,12 +28,26 @@ export interface A2UIKitConfig {
 
   /** How often to poll for a new trace, in ms. @default 3000 */
   tracePollMs?: number;
+
+  /**
+   * The conversation the explain panels should describe.
+   *
+   * Without it they ask for "the most recent thread that rendered anything",
+   * which is a guess. It was wrong in a way that took a while to see: an empty
+   * thread is created on some mounts, and once enough of those accumulate the
+   * newest ten threads contain no trace at all, so the panels conclude nothing
+   * has ever been generated and hide themselves while a surface is on screen.
+   *
+   * Naming the thread turns a guess into a lookup.
+   */
+  threadId?: string;
 }
 
 const DEFAULTS = {
   traceEndpoint: "/api/a2ui-trace",
   toolsEndpoint: "/api/tools",
   tracePollMs: 3000,
+  threadId: "",
 } as const;
 
 const Ctx = createContext<Required<A2UIKitConfig> | null>(null);

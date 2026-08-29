@@ -31,14 +31,20 @@ export async function GET(request: Request) {
   };
 
   try {
+    // A named thread is answered from that thread, but only if it has anything
+    // to say. A brand new conversation has no trace yet, and returning null for
+    // it would blank a panel that is describing a surface still on screen from
+    // the turn before, so fall through to the scan in that case.
     if (threadId) {
       const values = await stateOf(threadId);
-      return NextResponse.json({
-        threadId,
-        running: false,
-        trace: values?.a2ui_trace ?? null,
-        surface: values?.surface ?? null,
-      });
+      if (values?.a2ui_trace) {
+        return NextResponse.json({
+          threadId,
+          running: false,
+          trace: values.a2ui_trace,
+          surface: values.surface ?? null,
+        });
+      }
     }
 
     // No thread given: walk recent threads newest-first and take the first that
@@ -50,7 +56,10 @@ export async function GET(request: Request) {
     const res = await fetch(`${LANGGRAPH}/threads/search`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ limit: 10, sort_by: "updated_at", sort_order: "desc" }),
+      // 25, not 10. Every chat mount can create an empty thread, so a short
+      // window fills with threads that never rendered anything and the scan
+      // concludes nothing has ever been generated.
+      body: JSON.stringify({ limit: 25, sort_by: "updated_at", sort_order: "desc" }),
       cache: "no-store",
     });
     if (!res.ok) return NextResponse.json({ trace: null, reason: "thread search failed" });

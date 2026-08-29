@@ -207,7 +207,7 @@ function LiveData({ step, trace }: { step: JourneyStep; trace: Trace | null }) {
 }
 
 export function JourneyPanel() {
-  const { traceEndpoint, tracePollMs } = useA2UIKitConfig();
+  const { traceEndpoint, tracePollMs, threadId } = useA2UIKitConfig();
   const [open, setOpen] = useState(false);
   const [trace, setTrace] = useState<Trace | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -218,7 +218,13 @@ export function JourneyPanel() {
     let alive = true;
     const load = async () => {
       try {
-        const res = await fetch(traceEndpoint, { cache: "no-store" });
+        const res = await fetch(
+          // Ask about the conversation on screen. Without the id this is a
+          // guess at "the newest thread that rendered anything", which is
+          // wrong as soon as an empty thread is newer than the real one.
+          threadId ? `${traceEndpoint}?thread=${encodeURIComponent(threadId)}` : traceEndpoint,
+          { cache: "no-store" },
+        );
         const data = (await res.json()) as {
           trace?: Trace;
           running?: boolean;
@@ -252,7 +258,7 @@ export function JourneyPanel() {
       alive = false;
       clearInterval(timer);
     };
-  }, [open, traceEndpoint, tracePollMs]);
+  }, [open, traceEndpoint, tracePollMs, threadId]);
 
   if (!open) {
     return (

@@ -200,7 +200,7 @@ export function A2UIPipeline() {
   const [hasSurface, setHasSurface] = useState(false);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabKey>("source");
-  const { traceEndpoint, tracePollMs } = useA2UIKitConfig();
+  const { traceEndpoint, tracePollMs, threadId } = useA2UIKitConfig();
 
   /**
    * Only explain a surface that is actually on screen.
@@ -237,7 +237,13 @@ export function A2UIPipeline() {
 
     const load = async () => {
       try {
-        const res = await fetch(traceEndpoint, { cache: "no-store" });
+        const res = await fetch(
+          // Ask about the conversation on screen. Without the id this is a
+          // guess at "the newest thread that rendered anything", which is
+          // wrong as soon as an empty thread is newer than the real one.
+          threadId ? `${traceEndpoint}?thread=${encodeURIComponent(threadId)}` : traceEndpoint,
+          { cache: "no-store" },
+        );
         const data = (await res.json()) as { trace?: A2UITrace; surface?: unknown };
         if (!alive) return;
         setState(
@@ -256,7 +262,7 @@ export function A2UIPipeline() {
       alive = false;
       clearInterval(timer);
     };
-  }, [traceEndpoint, tracePollMs]);
+  }, [traceEndpoint, tracePollMs, threadId]);
 
   const trace = state?.a2ui_trace;
   if (!trace || !hasSurface) return null;
