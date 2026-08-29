@@ -1,0 +1,70 @@
+name: Keep Render awake
+
+# Render's free plan stops a web service after 15 minutes with no inbound
+# traffic, and the next visitor waits through a cold start while the whole
+# image boots: two Python runtimes, a Next server, and a LangGraph graph import
+# that the logs measure at about five seconds on its own. This pings the app so
+# there is usually nothing to wake up.
+#
+# Two things to know before relying on it:
+#
+#   * GitHub's shortest cron interval is five minutes, and scheduled runs are
+#     best-effort. Under load they are delayed, sometimes past fifteen minutes,
+#     so an occasional cold start still happens. This reduces them, it does not
+#     abolish them.
+#   * GitHub disables scheduled workflows on a repository with no commits for
+#     60 days, and does so quietly. If cold starts return after a long pause,
+#     check that this workflow is still enabled before looking anywhere else.
+#
+# It also costs the free plan's own budget: 750 instance-hours a month, and a
+# service kept awake all month uses roughly 730 of them. That is fine for one
+# service and impossible for two.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: # so you can ping it by hand from the Actions tab
+
+concurrency:
+  # A delayed run plus the next scheduled one would otherwise pile up.
+  group: keep-awake
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the app
+        env:
+          # Set this in Settings > Secrets and variables > Actions > Variables.
+          # A variable rather than a secret: it is a public URL, and secrets are
+          # masked in logs, which makes a failure here harder to read.
+          URL: ${{ vars.RENDER_URL || 'https://a2ui-assistant.onrender.com' }}
+        run: |
+          set -uo pipefail
+
+          # /api/products is the honest target. It is served by the web app and
+          # reads the catalog, so a 200 means the thing users hit is genuinely
+          # up, not merely that a TCP port answered.
+          endpoint="$URL/api/products?limit=1"
+
+          # A cold start is slow rather than broken, so retry rather than fail.
+          # --max-time covers boot: the graph import alone is around 5s, and a
+          # full wake is well over a minute.
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o /tmp/body.json -w '%{http_code}' \
+                        --max-time 120 "$endpoint" || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "OK  $endpoint -> $code"
+              head -c 200 /tmp/body.json
+              exit 0
+            fi
+            echo "attempt $attempt: $endpoint -> $code"
+            [ "$attempt" -lt 3 ] && sleep 20
+          done
+
+          echo "::error::$endpoint did not return 200 after 3 attempts (last: $code)"
+          exit 1

@@ -909,6 +909,33 @@ Three things about Render specifically:
 - **`healthCheckPath: /api/products`.** It is served by the web app and reads the
   catalog, so a pass means the thing users actually hit is working.
 
+### Keeping it awake, and what the free plan really costs
+
+Render's free plan stops a service after 15 minutes without traffic, and the
+next visitor waits through a full cold start: two Python runtimes, a Next
+server, and a graph import the logs clock at about five seconds on its own.
+
+[.github/workflows/keep-awake.yml](.github/workflows/keep-awake.yml) pings
+`/api/products` every five minutes. Set `RENDER_URL` under **Settings >
+Secrets and variables > Actions > Variables**, or it falls back to the URL in
+the file.
+
+Three honest caveats:
+
+- **Five minutes is GitHub's floor, and schedules are best-effort.** Under load
+  runs are delayed, sometimes past the 15-minute idle window, so the occasional
+  cold start still happens.
+- **GitHub disables scheduled workflows after 60 days without a commit**, and
+  does it quietly. If cold starts come back after a long pause, check the
+  Actions tab before looking anywhere else.
+- **It spends the free allowance.** 750 instance-hours a month; a service kept
+  awake around the clock uses roughly 730 of them. Fine for one service,
+  impossible for two.
+
+The free plan also gives 512 MB, and this image runs three processes. If deploys
+die partway through boot with no error, that is the memory ceiling rather than a
+bug: [render.yaml](render.yaml) asks for `plan: standard` for exactly this
+reason.
 Two honest caveats for a hosted deployment:
 
 - `langgraph dev` is a development server. It is what makes LangGraph Studio and

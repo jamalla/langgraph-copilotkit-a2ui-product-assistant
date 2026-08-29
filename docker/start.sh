@@ -63,7 +63,13 @@ pids="$pids $!"
 wait_for "http://127.0.0.1:${MCP_SERVER_PORT}/tools.json" "mcp" 60
 
 log "agent  127.0.0.1:2024  (internal)"
-uv run --directory apps/agent langgraph dev --host 0.0.0.0 --port 2024 --no-browser &
+# --no-reload matters more than it looks. Without it langgraph dev runs a
+# filesystem watcher, and it writes its own checkpoint state under the
+# project directory, so it detects its own writes and rescans forever. The
+# Render logs show it: "3 changes detected" every ten seconds, for as long
+# as the service is up. On a shared-CPU instance that idle churn is most of
+# the CPU budget, and it buys nothing: the code cannot change in an image.
+uv run --directory apps/agent langgraph dev --host 0.0.0.0 --port 2024 --no-browser --no-reload &
 pids="$pids $!"
 wait_for "http://127.0.0.1:2024/ok" "agent" 180
 

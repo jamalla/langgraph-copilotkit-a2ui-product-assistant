@@ -110,11 +110,21 @@ ENV PNPM_HOME=/pnpm \
     MCP_SERVER_HOST=0.0.0.0 \
     MCP_SERVER_PORT=8931 \
     MCP_SERVER_URL=http://127.0.0.1:8931/mcp \
-    LANGGRAPH_DEPLOYMENT_URL=http://127.0.0.1:2024
+    LANGGRAPH_DEPLOYMENT_URL=http://127.0.0.1:2024 \
+    COREPACK_HOME=/opt/corepack \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 WORKDIR /app
 COPY --from=build /app /app
 
+# Fetch pnpm now, at build time, into a place the runtime user can read.
+#
+# COREPACK_HOME is the whole point. Corepack caches into the invoking
+# user's home, so preparing as root left it in /root while the container
+# runs as uid 10001, which cannot read that. Corepack then re-downloaded
+# pnpm from the npm registry on every container start, visible in the Render
+# logs as "Corepack is about to download ...". A registry hiccup at that
+# moment is a failed boot, for a dependency already inside the image.
 # Activate pnpm from the version pinned in package.json now, at build time.
 # Left until first use, corepack would try to download it when the container
 # starts - a network call on the startup path, which is where you least want
@@ -123,7 +133,8 @@ RUN corepack enable && corepack prepare --activate
 
 # Non-root. `langgraph dev` writes checkpoint state under the project
 # directory, so the app tree has to belong to that user.
-RUN useradd --create-home --uid 10001 app && chown -R app:app /app
+RUN useradd --create-home --uid 10001 app \
+ && chown -R app:app /app /opt/corepack
 USER app
 
 # Documentation only - Render ignores EXPOSE and routes to $PORT. 2024 and 8931
