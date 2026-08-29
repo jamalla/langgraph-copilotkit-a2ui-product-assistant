@@ -18,7 +18,9 @@ Two structural choices are worth calling out, because Part 4 depends on both:
 
 from __future__ import annotations
 
+import asyncio
 import json
+import os
 from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
@@ -713,7 +715,7 @@ def _presenter_brief(question: str, facts: str, instruction: str) -> str:
     )
 
 
-def _langsmith_run() -> dict[str, Any]:
+async def _langsmith_run() -> dict[str, Any]:
     """The current LangSmith run, if tracing is on.
 
     Everything the journey panel shows is a summary. LangSmith has the full
@@ -721,23 +723,102 @@ def _langsmith_run() -> dict[str, Any]:
     the panel links straight to THIS run rather than to a project page you then
     have to search.
 
-    Returns empty when tracing is off, which is the normal case: the panel then
-    shows how to switch it on instead of a dead link.
+    Each lookup is guarded SEPARATELY on purpose. A single `try` around the
+    whole thing reported `enabled: false` on a correctly configured setup,
+    because `get_url()` can raise while tracing is perfectly healthy — and the
+    broad except turned a missing URL into "tracing is off", which sent me
+    looking at the env vars instead of at this function.
     """
+    out: dict[str, Any] = {"enabled": False}
+
     try:
-        from langsmith.run_helpers import get_current_run_tree
         from langsmith.utils import tracing_is_enabled
 
-        if not tracing_is_enabled():
-            return {"enabled": False}
+        out["enabled"] = bool(tracing_is_enabled())
+    except Exception as exc:
+        out["note"] = f"could not determine tracing state: {type(exc).__name__}"
+        return out
+
+    if not out["enabled"]:
+        return out
+
+    try:
+        from langsmith.run_helpers import get_current_run_tree
 
         run = get_current_run_tree()
-        if run is None:
-            return {"enabled": True}
-        return {"enabled": True, "run_id": str(run.id), "url": run.get_url()}
+    except Exception as exc:
+        out["note"] = f"no run tree: {type(exc).__name__}"
+        return out
+
+    if run is None:
+        out["note"] = "tracing is on but this node is not inside a traced run"
+        return out
+
+    out["run_id"] = str(run.id)
+    if getattr(run, "trace_id", None):
+        out["trace_id"] = str(run.trace_id)
+
+    try:
+        out["url"] = run.get_url()
+        return out
     except Exception:
-        # Tracing must never be able to break a turn.
-        return {"enabled": False}
+        # `get_url()` raises LangSmithError on a local `langgraph dev` run even
+        # when tracing is healthy. Build the link instead.
+        pass
+
+    url = await _langsmith_project_url()
+    if url:
+        out["url"] = f"{url}/r/{out['run_id']}"
+    else:
+        # Still a real traced run — say so, and give the id to search for.
+        out["note"] = (
+            "run traced; open your LangSmith project and search this run id"
+            + (f" ({_project_url_error})" if _project_url_error else "")
+        )
+
+    return out
+
+
+_project_url: str | None = None
+_project_url_error: str | None = None
+
+
+async def _langsmith_project_url() -> str | None:
+    """The project's LangSmith URL, resolved once per process.
+
+    `RunTree.get_url()` needs an org and project id it cannot always resolve on
+    a local `langgraph dev` run. `Client.read_project()` returns both, already
+    assembled as `url` — one API call, cached.
+
+    Only SUCCESS is cached. Caching the failure too meant one early call — made
+    before the environment was ready — pinned `None` for the life of the
+    process, and every later turn reported no URL while a plain script resolved
+    it fine.
+    """
+    global _project_url, _project_url_error
+    if _project_url:
+        return _project_url
+
+    def lookup() -> str:
+        from langsmith import Client
+
+        project = Client().read_project(
+            project_name=os.getenv("LANGSMITH_PROJECT", "default")
+        )
+        return str(getattr(project, "url", "") or "")
+
+    try:
+        # `read_project` is a blocking HTTP call, and `langgraph dev` refuses
+        # synchronous socket work on its event loop — it detects the block and
+        # fails the call rather than letting one request stall every other run.
+        url = await asyncio.to_thread(lookup)
+        if url:
+            _project_url = url
+            _project_url_error = None
+        return _project_url
+    except Exception as exc:
+        _project_url_error = f"{type(exc).__name__}: {exc}"
+        return None
 
 
 def _read_a2ui_envelope(envelope: Any) -> dict[str, Any]:
@@ -831,7 +912,7 @@ async def _present_with_a2ui(
         "product_count": len(((state.get("surface") or {}).get("data") or {}).get("products") or []),
         "surface_kind": (state.get("surface") or {}).get("kind"),
         # Deep-link into the full trace for this exact run.
-        "langsmith": _langsmith_run(),
+        "langsmith": await _langsmith_run(),
         "catalog_id": None,
         "surface_id": None,
         "components": None,

@@ -278,6 +278,18 @@ controls sit above the screen edge. `maxSize()` in `ChatResizer.tsx` and the `ma
 A saved size is also clamped to the current viewport on load and on every window resize — otherwise
 maximising on a wide monitor and reopening on a laptop restores a popup wider than the screen.
 
+### `langgraph dev` refuses blocking calls on its event loop
+
+Resolving the LangSmith project URL uses `Client.read_project()` — a synchronous HTTP call. Inside a
+node it fails with *"Blocking call to socket.socket.connect"*, because one blocked request would
+stall every other run on the server. Wrap it: `await asyncio.to_thread(lookup)`.
+
+Two related traps in the same helper. `RunTree.get_url()` raises `LangSmithError` on a local run
+even when tracing is perfectly healthy, so the URL is built from `Client.read_project().url` plus
+`/r/{run_id}` instead. And a single broad `try` around the whole lookup reported `enabled: false` on
+a correctly configured setup — the failing URL call masked the healthy tracing state and sent me
+checking env vars instead of the function. Guard each step separately.
+
 ### Tailwind does not scan a workspace package unless you tell it
 
 Moving components into `packages/a2ui-kit` silently dropped **every Tailwind class they use**.
