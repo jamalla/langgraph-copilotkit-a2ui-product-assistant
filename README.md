@@ -678,6 +678,30 @@ free while the site is up.
 
 ---
 
+### I changed Python code and nothing happened
+
+`next dev` hot reloads. **`langgraph dev` and the FastMCP server do not.** Edit a
+node, a prompt, `design_rules.py`, or an MCP tool and the running processes keep
+serving the modules they loaded at startup. The web app picks up its half
+immediately, which makes it look like the change half worked.
+
+It costs real time because the symptom is not an error. The old behaviour simply
+continues, so you go looking for a bug in code that is correct and is not
+running.
+
+Two ways to tell in seconds, without guessing:
+
+```bash
+# Does the running MCP server have the tool argument you just added?
+curl -s http://localhost:8931/tools.json | grep -o '"stock"'
+
+# Did the last run use the new code? Compare against what you expect.
+curl -s http://localhost:3000/api/a2ui-trace | head -c 400
+```
+
+The fix is always the same: stop `pnpm dev` and start it again. Restarting the
+browser or the web app alone is not enough.
+
 ### A prompt cannot ask for what a binding cannot do
 
 Generated cards showed spec labels with **no values**, a price reading `229`
