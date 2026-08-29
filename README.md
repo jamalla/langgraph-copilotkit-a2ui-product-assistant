@@ -84,6 +84,11 @@ that traces one real question from typed sentence to mounted React. Each step na
 does the work, shows the code, and shows what that step produced on an actual run. Arrow keys to
 step, space to play, number keys to jump.
 
+Press **Voice** and it narrates itself, advancing when each sentence finishes rather than on a
+timer — so a dense step gets the time it needs. The narration is written for the ear: no code read
+aloud, no file paths spelled out. Uses the browser's own `speechSynthesis`, so there are still no
+audio files and no network calls.
+
 No build, no server, no dependencies — one file you can send to someone.
 
 ## Learning it: the journey panel

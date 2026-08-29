@@ -149,6 +149,14 @@ button.ctl:hover:not(:disabled){border-color:var(--rule-2)}
 button.ctl:disabled{opacity:.4;cursor:default}
 button.ctl.play{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);min-width:96px}
 .count{margin-left:auto;font:500 12px/1 "IBM Plex Mono",monospace;color:var(--ink-3);font-variant-numeric:tabular-nums}
+button.ctl[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+select.voice{border:1px solid var(--rule);background:var(--surface);color:var(--ink-2);border-radius:9px;
+  height:36px;padding:0 8px;font:400 12px/1 "IBM Plex Sans",sans-serif;max-width:170px}
+select.voice:hover{border-color:var(--rule-2)}
+/* the narrated sentence, shown while it is spoken */
+.saying{border-left:2px solid var(--accent);padding:2px 0 2px 11px;color:var(--ink-2);
+  font-size:13.5px;line-height:1.6;max-width:66ch}
+.saying[hidden]{display:none}
 .hint{font:400 11.5px/1.5 "IBM Plex Sans",sans-serif;color:var(--ink-3);text-align:center}
 kbd{border:1px solid var(--rule-2);border-bottom-width:2px;border-radius:4px;padding:1px 5px;font-size:10.5px;color:var(--ink-2)}
 </style>
@@ -188,6 +196,7 @@ kbd{border:1px solid var(--rule-2);border-bottom-width:2px;border-radius:4px;pad
       </div>
 
       <p class="what" id="what"></p>
+      <p class="saying" id="saying" hidden aria-live="polite"></p>
 
       <div class="file">
         <span class="tag">file</span>
@@ -211,9 +220,11 @@ kbd{border:1px solid var(--rule-2);border-bottom-width:2px;border-radius:4px;pad
         <button class="ctl" id="prev">← Back</button>
         <button class="ctl play" id="play">Play</button>
         <button class="ctl" id="next">Next →</button>
+        <button class="ctl" id="voice" aria-pressed="false" title="Narrate each step aloud">🔈 Voice</button>
+        <select class="voice" id="voicePick" aria-label="Narration voice" hidden></select>
         <span class="count" id="count">01 / 12</span>
       </div>
-      <p class="hint"><kbd>←</kbd> <kbd>→</kbd> step &nbsp;·&nbsp; <kbd>space</kbd> play &nbsp;·&nbsp; <kbd>1</kbd>–<kbd>9</kbd> jump</p>
+      <p class="hint"><kbd>←</kbd> <kbd>→</kbd> step &nbsp;·&nbsp; <kbd>space</kbd> play &nbsp;·&nbsp; <kbd>1</kbd>–<kbd>9</kbd> jump &nbsp;·&nbsp; <kbd>v</kbd> voice</p>
     </main>
   </div>
 </div>
@@ -226,6 +237,7 @@ const Q = "show me noise cancelling headphones under $300";
 
 const STEPS = [
 {s:"browser", t:"You ask a question",
+ n:"You type a question and press send. At this moment nothing about the interface has been decided. It is an ordinary web request carrying a sentence. The provider component in the A2UI kit package is what posts it.",
  w:"The chat posts your message to the CopilotKit runtime. Nothing about the interface has been decided — this is an ordinary HTTP request carrying a sentence.",
  f:"packages/a2ui-kit/src/provider.tsx",
  c:`<b>&lt;A2UIChatProvider</b>
@@ -236,6 +248,7 @@ const STEPS = [
  dl:"the message", d:`"${Q}"`},
 
 {s:"runtime", t:"The runtime attaches the component catalog",
+ n:"The request reaches a Next.js route. The runtime here is configured with a two U I, and that one setting does the whole job. It attaches a catalog describing every component this browser knows how to draw, and sends it along to the agent as context. An empty pair of braces is the entire configuration. It means: use the standard catalog, and let a model design the layout fresh on every turn.",
  w:"CopilotRuntime is configured with a2ui, which applies the A2UI middleware. It tells the agent which components this browser can draw, as AG-UI context.",
  f:"apps/web/app/api/copilotkit/[[...rest]]/route.ts",
  c:`<b>const</b> runtime = <b>new</b> CopilotRuntime({
@@ -250,6 +263,7 @@ A2UI design guidelines`,
  trap:"An empty object is the entire configuration. It means: use the standard v0.9 basic catalog and let a model design the tree each turn — dynamic schema."},
 
 {s:"runtime", t:"AG-UI carries it to the graph",
+ n:"A G U I is the protocol between the runtime and the agent. It carries the conversation, the component catalog, and any tools that live in your browser, over to the LangGraph server. Everything arrives as ordinary graph input.",
  w:"LangGraphAgent speaks AG-UI over HTTP to langgraph dev. The catalog, your frontend tools and the conversation all arrive as graph input.",
  f:"@ag-ui/langgraph → langgraph dev :2024",
  c:`POST /threads/{id}/runs/stream
@@ -262,6 +276,7 @@ state["tools"]`,
  trap:"Because the Node adapter is used, the Python helper that would populate ag-ui.a2ui_schema never runs. The catalog arrives as an ordinary context entry — code that reads only that key finds nothing."},
 
 {s:"agent", t:"The supervisor picks one specialist",
+ n:"Now we are inside the agent. A supervisor makes exactly one routing decision for this turn. It uses structured output, so the model cannot answer with something the graph has no route for. It returns a command that names the next node and updates the state in the same breath. Here it chose the catalog agent, and rewrote your sentence into plain search terms.",
  w:"One routing decision per turn, made with structured output so the model cannot return something unroutable. It returns a Command carrying both the destination and the state update.",
  f:"apps/agent/src/agent/nodes.py → supervisor()",
  c:`model = make_model().with_structured_output(
@@ -275,6 +290,7 @@ refined : "noise cancelling headphones"`,
  trap:"method=\"json_schema\" is load-bearing. The default implementation is function calling, which streams a malformed tool call to the browser and blanks the answer."},
 
 {s:"agent", t:"A worker queries the catalog",
+ n:"The chosen worker calls tools over M C P, the model context protocol. That server owns the product data and the comparison logic. The agent only decides what to ask for. On this run it called search products once, and got four back.",
  w:"The chosen worker calls MCP tools over streamable HTTP. The MCP server owns the data and the comparison logic; the agent only decides what to ask for.",
  f:"apps/agent/src/agent/nodes.py · apps/mcp/src/mcp_products/server.py",
  c:`result = <b>await</b> tool.ainvoke(
@@ -284,6 +300,7 @@ refined : "noise cancelling headphones"`,
  trap:"Those empty callbacks matter. Tracing the call makes the adapter synthesise a tool-call event with no id and no name, which corrupts the client's message list and silently drops the answer."},
 
 {s:"agent", t:"The worker writes data, not prose",
+ n:"This is the hinge the whole design turns on. The worker does not write you a sentence. It writes a surface: a kind, a title, and the raw products. Nothing at this point knows what the interface will look like. Because the worker emits data instead of prose, swapping plain text for generated UI later changed exactly one function.",
  w:"It puts what it found into a surface dict — kind, title, and the raw products. It never writes a sentence for you. This is the hinge the whole design turns on.",
  f:"apps/agent/src/agent/state.py → SurfaceSpec",
  c:`surface: SurfaceSpec = {
@@ -297,6 +314,7 @@ data  : 4 products`,
  trap:"Because workers emit data, swapping markdown for generative UI changed exactly one function. Had each worker written its own answer, that swap would have been a rewrite of all of them."},
 
 {s:"agent", t:"The presenter writes the answer",
+ n:"One node, and only one, decides how anything looks. The presenter writes the prose first, on its own, with no tools available to it. That keeps the text message clean and complete before any interface work begins.",
  w:"One node decides how anything looks. It generates the prose on its own first, with no tools bound, so the text message streams and completes cleanly.",
  f:"apps/agent/src/agent/nodes.py → _present_with_a2ui()",
  c:`reply = <b>await</b> make_model().ainvoke([
@@ -308,6 +326,7 @@ data  : 4 products`,
  trap:"Prose first, then render. Ask for both in one turn and the text attaches itself to a tool call — the bubble arrives empty while the answer sits on the wire."},
 
 {s:"agent", t:"A second model designs the interface",
+ n:"Here is the part that surprises people. A second, separate model designs the interface. It is shown the component catalog, your house style, and the data, and it invents a component tree for this turn. Nobody wrote this layout in advance. Its output is forced through a schema, checked against the catalog, and retried if it does not validate.",
  w:"generate_a2ui runs a separate LLM, shown the component catalog, your house style and the data. It invents a component tree for this turn — forced through a schema, validated against the catalog, retried on failure.",
  f:"apps/agent/src/agent/a2ui.py · apps/agent/src/agent/design_rules.py",
  c:`_tool = get_a2ui_tools({
@@ -319,6 +338,7 @@ Column · Text · List · Card · Row`,
  trap:"It reads its data from ag-ui.context, never from the presenter's prompt. Miss that and it invents plausible products you do not sell — correct layout, fluent prose, fictional catalogue."},
 
 {s:"agent", t:"Three operations go on the wire",
+ n:"The design leaves as three operations. Create surface opens a canvas. Update components sends the tree. Update data model sends the values. Structure and data travel separately, and that separation is what lets data stream into a layout that was only sent once.",
  w:"createSurface opens a canvas, updateComponents sends the tree, updateDataModel sends the values. Structure and data travel separately, which is what lets data stream into a layout sent only once.",
  f:"A2UI v0.9 envelope",
  c:`{ <b>"a2ui_operations"</b>: [
@@ -333,6 +353,7 @@ Column · Text · List · Card · Row`,
                 "path": "/products" } }`},
 
 {s:"agent", t:"Values bind into the tree by path",
+ n:"Components do not carry values. They carry paths. A card's title says: my text lives at name. Inside a repeating list those paths are relative to each item, while the list's own path is absolute. Getting that backwards is the most common reason a generated surface comes out blank.",
  w:"Components reference data as a path rather than a literal. Inside a repeating List the paths are relative to each item; the List's own path is absolute.",
  f:"updateDataModel → surface data model",
  c:`{ "id": "product-name", "component": "Text",
@@ -345,6 +366,7 @@ Column · Text · List · Card · Row`,
  trap:"Relative inside a template, absolute outside it. Getting this backwards is the single most common reason a generated surface renders blank."},
 
 {s:"render", t:"The middleware paints the surface",
+ n:"Back in the browser. The A2UI middleware turns those operations into a single activity message. Building, retrying, and painted all share one message identity and replace each other in place, which is why you never see two loading skeletons stacked up.",
  w:"The A2UI middleware turns the operations into an activity message. The whole lifecycle — building, retrying, painted — rides one message id and replaces in place, so you never see two loaders.",
  f:"@ag-ui/a2ui-middleware → ACTIVITY_SNAPSHOT",
  c:`{ "type": "ACTIVITY_SNAPSHOT",
@@ -355,6 +377,7 @@ Column · Text · List · Card · Row`,
 skeleton at 10s → painted at 15s`},
 
 {s:"render", t:"React mounts it, in your theme",
+ n:"Finally the renderer starts at the component named root, walks the tree, resolves every path against the data model, and mounts real React components. The colours and corner radius come from variables scoped to the surface and mapped to your own design tokens, so an interface nobody designed still looks like the rest of your app, in light mode and dark.",
  w:"The renderer starts at the component with id root, walks the tree, resolves each binding against the data model, and mounts real React components. Colour and radius come from variables scoped to the surface — mapped to your own tokens.",
  f:"@copilotkit/a2ui-renderer · packages/a2ui-kit/src/styles/a2ui-theme.css",
  c:`.a2ui-surface {
@@ -422,16 +445,114 @@ function render(){
   });
 }
 
-function go(n){ i = Math.max(0, Math.min(STEPS.length - 1, n)); render(); }
-function stop(){ playing = false; clearInterval(timer); $("play").textContent = "Play"; }
+function go(n){
+  const next = Math.max(0, Math.min(STEPS.length - 1, n));
+  const moved = next !== i;
+  i = next; render();
+  if (voiceOn && moved) speakStep(playing ? afterNarration : null);
+}
+
+function stop(){
+  playing = false; clearTimeout(timer); timer = null;
+  $("play").textContent = "Play";
+  hush();
+}
+
+/* Called when a step's narration finishes: pause a beat, then advance. */
+function afterNarration(){
+  if (!playing) return;
+  if (i >= STEPS.length - 1) return stop();
+  timer = setTimeout(() => { if (playing) go(i + 1); }, 700);
+}
+
 function start(){
   if (i === STEPS.length - 1) i = 0;
   playing = true; $("play").textContent = "Pause"; render();
-  timer = setInterval(() => {
-    if (i >= STEPS.length - 1) return stop();
-    go(i + 1);
-  }, 5200);
+
+  if (voiceOn) {
+    // Pacing follows the words, so a long step gets the time it needs.
+    speakStep(afterNarration);
+  } else {
+    // Silent: a fixed beat, long enough to read the code panel.
+    timer = setInterval(() => {
+      if (i >= STEPS.length - 1) return stop();
+      i += 1; render();
+    }, 5200);
+  }
 }
+
+/* ── narration ───────────────────────────────────────────────────────────
+   speechSynthesis is built into the browser: no audio files, no network, no
+   API key, so the page stays a single portable file. Two things it demands:
+   voices load asynchronously (getVoices() is empty on first call in Chromium
+   until `voiceschanged` fires), and speaking must begin from a user gesture,
+   so narration is opt-in via the button rather than autoplaying. */
+const TTS = "speechSynthesis" in window ? window.speechSynthesis : null;
+let voiceOn = false, voices = [], chosen = null;
+
+function loadVoices(){
+  if (!TTS) return;
+  voices = TTS.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("en"));
+  if (!voices.length) return;
+
+  const pick = $("voicePick");
+  const saved = (() => { try { return localStorage.getItem("tw-voice"); } catch { return null; } })();
+  // Prefer a saved choice, then a natural-sounding local voice, then anything.
+  chosen = voices.find(v => v.name === saved)
+        || voices.find(v => /natural|neural|premium|enhanced/i.test(v.name))
+        || voices.find(v => v.localService) || voices[0];
+
+  pick.innerHTML = voices.map(v =>
+    `<option value="${v.name.replace(/"/g,"&quot;")}"${v === chosen ? " selected" : ""}>${v.name}</option>`
+  ).join("");
+  pick.hidden = false;
+}
+
+if (TTS) {
+  loadVoices();
+  TTS.addEventListener("voiceschanged", loadVoices);
+  $("voicePick").onchange = e => {
+    chosen = voices.find(v => v.name === e.target.value) || chosen;
+    try { localStorage.setItem("tw-voice", e.target.value); } catch {}
+    if (voiceOn) speakStep();          // hear the new voice immediately
+  };
+} else {
+  // No speech engine: say so plainly rather than offering a control that does nothing.
+  $("voice").disabled = true;
+  $("voice").title = "This browser has no speech synthesis";
+}
+
+function hush(){
+  if (TTS) TTS.cancel();
+  $("saying").hidden = true;
+}
+
+/* Speak the current step. `onEnd` lets Play advance when the sentence
+   finishes rather than on a fixed timer — the pacing then follows the words. */
+function speakStep(onEnd){
+  if (!TTS || !voiceOn) { if (onEnd) onEnd(); return; }
+  TTS.cancel();
+
+  const line = STEPS[i].n;
+  $("saying").textContent = line;
+  $("saying").hidden = false;
+
+  const said = new SpeechSynthesisUtterance(line);
+  if (chosen) { said.voice = chosen; said.lang = chosen.lang; }
+  said.rate = 0.97;   // a touch under default; this is dense material
+  said.pitch = 1;
+  said.onend = () => { $("saying").hidden = true; if (onEnd) onEnd(); };
+  said.onerror = () => { $("saying").hidden = true; if (onEnd) onEnd(); };
+  TTS.speak(said);
+}
+
+$("voice").onclick = () => {
+  voiceOn = !voiceOn;
+  $("voice").setAttribute("aria-pressed", String(voiceOn));
+  $("voice").textContent = voiceOn ? "🔊 Voice" : "🔈 Voice";
+  if (voiceOn) speakStep(playing ? afterNarration : null);
+  else hush();
+};
 
 $("prev").onclick = () => { stop(); go(i - 1); };
 $("next").onclick = () => { stop(); go(i + 1); };
@@ -445,6 +566,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === "ArrowLeft") { stop(); go(i - 1); }
   else if (e.key === " ") { e.preventDefault(); playing ? stop() : start(); }
   else if (/^[1-9]$/.test(e.key)) { stop(); go(+e.key - 1); }
+  else if (e.key === "v" || e.key === "V") { $("voice").click(); }
 });
 
 const themer = $("themer");
@@ -455,6 +577,9 @@ themer.onclick = () => {
   if (next) root.setAttribute("data-theme", next); else root.removeAttribute("data-theme");
   themer.textContent = next === "dark" ? "☾" : next === "light" ? "☀" : "◐";
 };
+
+document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
+window.addEventListener("beforeunload", hush);
 
 render();
 </script>
