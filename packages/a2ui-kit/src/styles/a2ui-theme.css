@@ -38,10 +38,50 @@
   border-radius: 8px;
 }
 
-/* Horizontal lists are how the subagent lays out comparisons. Give the cards a
-   floor so a three-way compare scrolls instead of crushing. */
+/* ---------------------------------------------------------------------------
+   RESPONSIVE CARD GRID
+
+   Asking the model for "3 to 5 products per row depending on width" is a wish:
+   it emits a component tree, has no idea how wide the chat is, and cannot
+   re-decide when you drag the resizer. Asking CSS is a fact.
+
+   So the generated List becomes a grid whose column COUNT is never stated.
+   `auto-fill` with a 168px floor lets the browser fit as many as the current
+   width allows and reflow on every resize - three in a narrow popup, five or
+   more maximised, one on a phone. The model keeps emitting the same tree.
+
+   This is the rule of thumb in design_rules.py applied: expressible in CSS,
+   therefore not a prompt.
+   --------------------------------------------------------------------------- */
+.a2ui-surface [class*="list"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+/* A single result should not be stretched across the full width as one giant
+   card - cap it at the width a card wants to be. */
+.a2ui-surface [class*="list"]:has(> :only-child) {
+  grid-template-columns: minmax(0, 260px);
+}
+
+/* Grid children are already sized by the track, so the old min-width would now
+   fight the column. Let them fill their cell instead. */
 .a2ui-surface [class*="list"] > * {
-  min-width: 168px;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Photographs in a card are a header, not free-floating content: full bleed
+   across the card, fixed aspect, cropped rather than letterboxed. Overrides the
+   generic img rule above, which exists for images we did not put there. */
+.a2ui-surface [class*="list"] img {
+  width: 100%;
+  max-height: none;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
 }
 
 /* Generated tables and wide rows scroll inside the surface rather than pushing

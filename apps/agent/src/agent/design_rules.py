@@ -6,18 +6,36 @@ There are exactly two places that control how a generated surface looks, and
 they do different jobs:
 
   packages/a2ui-kit/src/styles/a2ui-theme.css
-      COLOUR, RADIUS, TYPE. CSS variables scoped to `.a2ui-surface`, mapped to
+      COLOUR, RADIUS, TYPE, and LAYOUT. CSS scoped to `.a2ui-surface`, mapped to
       your design tokens. Applies to whatever the model produces, after the
-      fact. Deterministic — CSS cannot be ignored.
+      fact. Deterministic - CSS cannot be ignored.
 
   this file
-      STRUCTURE. Which components get used, how they are arranged, what is
-      never allowed. Reaches the model that DESIGNS the tree, before it decides
+      STRUCTURE. Which components get used, in what order, and what is never
+      allowed. Reaches the model that DESIGNS the tree, before it decides
       anything. Influential, not guaranteed: it is a prompt.
 
-Rule of thumb: if you can express it in CSS, do it in CSS. Come here for the
-things CSS cannot reach — "compare tables must be horizontal", "never use
-Image", "every card leads with the price".
+Rule of thumb: if you can express it in CSS, do it in CSS. The responsive card
+grid is a good example - asking the model for "3 to 5 per row depending on
+width" is a wish, while a CSS grid template is a fact.
+
+## The rule this file learned the hard way
+
+A prompt can only ask for things the runtime can actually do. An A2UI binding
+POINTS AT a value; it cannot format, concatenate, or branch.
+
+This file used to ask for "prices as $279", "brand and rating on one line", and
+a caption for out-of-stock products. None of those is expressible as a binding,
+so the subagent approximated: it shipped a bare `229`, bound `brand` and
+dropped the rating, and wrote a LITERAL "Out of stock" into the card template -
+which then rendered on every product in the list, in-stock ones included.
+
+The fix was not a firmer prompt. It was `display_product()` in a2ui.py, which
+precomputes every string a card can show as a flat top-level field, so the
+model's only remaining job is choosing which to display and where.
+
+If you add a rule below that asks the model to compute anything, add the field
+to `display_product()` instead.
 
 ## How it gets there
 
@@ -28,7 +46,7 @@ guidelines. Appending matters: those defaults carry real protocol constraints
 and replacing them wholesale produces surfaces that fail validation.
 
 If you do want to replace a block instead, `render_tool()` in a2ui.py can pass
-`design_guidelines` — and `""` suppresses a block entirely.
+`design_guidelines` - and "" suppresses a block entirely.
 """
 
 from __future__ import annotations
@@ -36,47 +54,63 @@ from __future__ import annotations
 HOUSE_STYLE = """\
 ## House rules for this product catalog
 
-Layout
+### The one rule everything else follows
+
+You can only BIND to a value that already exists. You cannot format one, join
+two together, or choose between them. So every string a card needs has already
+been prepared for you as a FLAT, TOP-LEVEL field on each product.
+
+Bind those fields. Never build a string, never bind a nested path.
+
+Available on every product, ready to display exactly as-is:
+
+  imageUrl     "/products/hp-001.jpg"     imageAlt    alt text for that photo
+  name         "Aether NC 900"            priceLabel  "$399"
+  brandLine    "SONARE - 4.8 out of 5 - 4.1K reviews"
+  description  the one-line summary
+  stockLabel   "In stock" or "Out of stock", already correct for that product
+  spec1Label   "Battery"                  spec1Value  "32 h"
+  spec2Label / spec2Value, and so on through spec4Label / spec4Value
+
+There is no `specs` object and no bare `price` number in your data. If you catch
+yourself reaching for {"path": "specs/type"} or {"path": "price"}, the field you
+want is spec1Value or priceLabel. A nested path inside a List template resolves
+to nothing, and the card renders blank without any error.
+
+Products with fewer than four specs have empty strings in the unused slots. An
+empty Text renders as nothing, so bind all four without checking.
+
+### Layout
+
 - Product results are a List of Cards. One Card per product, never a table.
-- Use direction="horizontal" for a comparison of 2-4 products so they read
-  side by side; use vertical for a list of results.
-- Wrap the whole surface in a Column whose first child is a Text with
-  variant="h2" naming what is shown ("4 matching products"). Put it outside the
-  List so it does not repeat.
+- Use direction="horizontal" for product results and for comparisons. The
+  surface is styled as a responsive grid, so the cards flow onto as many rows
+  as the chat width allows. Use vertical only for a single result.
+- Wrap the whole surface in a Column whose first child is a Text variant="h2"
+  naming what is shown ("9 matching products"). Keep it outside the List so it
+  does not repeat on every card.
 
-Inside a product Card, in this order
-0. Image — the product photo, bound to imageUrl (see Images below).
-1. Text variant="h3" — the product name.
-2. Text variant="h2" — the price, formatted with a currency symbol. Price is
-   the number people scan for; it earns the larger size.
-3. Text variant="caption" — brand and rating on one line.
-4. Text variant="body" — the short description, if there is room.
-5. A Row with justify="spaceBetween" per spec you show: label on the left,
-   value on the right. Show at most four specs, and choose the ones that
-   matter for what the user asked.
+### Inside a product Card, in this order
 
-Images
-- Every product carries an "imageUrl" (a path like "/products/lp-001.jpg") and
-  an "imageAlt". Put an Image as the FIRST child of each product Card, before
-  the name, bound to that product's imageUrl.
-- Use the imageUrl from the data VERBATIM. Never invent one, never guess a
-  filename from the product id, never use an external URL. An invented path
-  renders as a broken box, and it will look like our bug, not yours.
-- Always set the Image alt from imageAlt. A card that is mostly photograph is
-  useless to a screen reader without it.
-- One image per Card, never a gallery, and never an Image anywhere else in the
-  surface.
+1. Image                  - src bound to imageUrl, alt bound to imageAlt.
+2. Text variant="h3"      - name
+3. Text variant="h2"      - priceLabel
+4. Text variant="caption" - brandLine
+5. Text variant="caption" - stockLabel
+6. Text variant="body"    - description
+7. Up to four Rows, justify="spaceBetween", each holding two Texts: specNLabel
+   on the left, specNValue on the right.
 
-Never
-- Never use an Image for a product that has no imageUrl - fall back to text.
+### Never
+
+- Never invent an imageUrl or guess one from a product id. Bind the field, or
+  leave the Image out.
+- Never write a product value as a literal `text` string. "Out of stock",
+  "$399" and "4.8 out of 5" are data. A literal is baked into the card template
+  and therefore applies to every product in the list, including the ones it is
+  wrong for.
 - Never repeat the same value in two components of one Card.
-- Never put raw ids (hp-001) in front of the user; they are for tool calls.
-- Never show a spec that is identical across every product on screen — it
+- Never put a raw id (hp-001) in front of the user; ids are for tool calls.
+- Never show a spec that is identical across every product on screen - it
   cannot help anyone choose.
-
-Wording
-- Prices as "$279", not "279" or "279.00 USD".
-- Ratings as "4.6 out of 5", not "4.6/5" or a bare number.
-- Out-of-stock products still appear, with a Text variant="caption" reading
-  "Out of stock" — omitting them silently is worse than showing them.
 """

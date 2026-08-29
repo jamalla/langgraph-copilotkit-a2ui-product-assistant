@@ -36,6 +36,7 @@ from .a2ui import (
     needs_runtime,
     render_tool,
     state_with_render_data,
+    surface_for_display,
 )
 from .llm import make_model
 from .state import AgentState, SurfaceSpec, empty_turn
@@ -704,7 +705,7 @@ async def presenter(state: AgentState, config: RunnableConfig) -> dict[str, Any]
     # silently loses whatever field the cut landed in. Adding imageUrl/imageAlt
     # pushed eight products to ~6.2 KB, which is how the old 6000 cap was found.
     facts = (
-        json.dumps(surface, default=str)[:FACTS_BUDGET]
+        json.dumps(surface_for_display(surface), default=str)[:FACTS_BUDGET]
         if surface
         else prompts.NO_WORK_MARKER
     )

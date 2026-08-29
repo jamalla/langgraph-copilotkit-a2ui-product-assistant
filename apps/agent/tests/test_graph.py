@@ -559,3 +559,109 @@ def test_render_tool_passes_the_house_style():
     source = inspect.getsource(a2ui.render_tool)
     assert "composition_guide" in source
     assert "HOUSE_STYLE" in source
+
+
+# ---------------------------------------------------------------------------
+# Display projection
+# ---------------------------------------------------------------------------
+#
+# These guard the shape the A2UI subagent is promised in HOUSE_STYLE. If a field
+# here is renamed or dropped, the model keeps binding the old path and the card
+# renders blank - with no error anywhere. That silence is why these exist.
+
+
+def _display(**overrides):
+    from agent.a2ui import display_product
+
+    product = {
+        "id": "hp-001",
+        "name": "Aether NC 900",
+        "brand": "Sonare",
+        "price": 1299,
+        "currency": "USD",
+        "rating": 4.8,
+        "reviewCount": 4100,
+        "inStock": True,
+        "imageUrl": "/products/hp-001.jpg",
+        "imageAlt": "black headphones",
+        "shortDescription": "Flagship ANC.",
+        "specs": {"battery_hours": 32, "anc": True},
+        "tags": ["anc"],
+    }
+    product.update(overrides)
+    return display_product(product)
+
+
+def test_price_is_formatted_because_a_binding_cannot_format():
+    assert _display()["priceLabel"] == "$1,299"
+
+
+def test_stock_label_is_per_product_not_a_literal():
+    # The bug this replaced: one literal "Out of stock" in the card template
+    # applied to every product in the list.
+    assert _display(inStock=True)["stockLabel"] == "In stock"
+    assert _display(inStock=False)["stockLabel"] == "Out of stock"
+
+
+def test_specs_are_flattened_and_the_nested_object_is_gone():
+    d = _display()
+    assert d["spec1Label"] == "Battery" and d["spec1Value"] == "32 h"
+    assert d["spec2Label"] == "Noise cancelling" and d["spec2Value"] == "Yes"
+    # A nested path inside a List template resolves to nothing, so the object
+    # must not be there to tempt the model.
+    assert "specs" not in d
+
+
+def test_unused_spec_slots_exist_and_are_empty():
+    # HOUSE_STYLE tells the model to bind all four without checking.
+    d = _display(specs={"battery_hours": 32})
+    assert d["spec4Label"] == "" and d["spec4Value"] == ""
+
+
+def test_brand_line_carries_the_rating_a_binding_could_not_join():
+    assert _display()["brandLine"] == "SONARE · 4.8 out of 5 · 4.1K reviews"
+
+
+def test_image_fields_survive_the_projection():
+    d = _display()
+    assert d["imageUrl"] == "/products/hp-001.jpg"
+    assert d["imageAlt"] == "black headphones"
+
+
+def test_alt_text_falls_back_to_the_name():
+    assert _display(imageAlt=None)["imageAlt"] == "Aether NC 900"
+
+
+def test_surface_for_display_rewrites_products_in_place():
+    from agent.a2ui import surface_for_display
+
+    surface = surface_for_display(
+        {"kind": "product_grid", "title": "1 match", "data": {"products": [_raw()], "note": "n"}}
+    )
+    assert surface["title"] == "1 match" and surface["data"]["note"] == "n"
+    assert surface["data"]["products"][0]["priceLabel"] == "$1,299"
+
+
+def test_surface_for_display_leaves_a_surface_without_products_alone():
+    from agent.a2ui import surface_for_display
+
+    assert surface_for_display({"kind": "none"}) == {"kind": "none"}
+    assert surface_for_display(None) is None
+
+
+def _raw():
+    return {
+        "id": "hp-001",
+        "name": "Aether NC 900",
+        "brand": "Sonare",
+        "price": 1299,
+        "currency": "USD",
+        "rating": 4.8,
+        "reviewCount": 4100,
+        "inStock": True,
+        "imageUrl": "/products/hp-001.jpg",
+        "imageAlt": "black headphones",
+        "shortDescription": "Flagship ANC.",
+        "specs": {"battery_hours": 32},
+        "tags": [],
+    }

@@ -89,7 +89,7 @@ the catalog file, your API key and all three ports before anything starts.
 | `pnpm setup` | install + sync + preflight, from a fresh clone |
 | `pnpm dev` | all three services, colour-prefixed |
 | `pnpm dev:web` / `dev:agent` / `dev:mcp` | one service at a time |
-| `pnpm check` | typecheck + all 59 tests |
+| `pnpm check` | typecheck + all 70 tests |
 | `pnpm smoke` | load the running app in headless Edge, fail on any console error |
 | `pnpm check:all` | `check` + `smoke` (needs `pnpm dev` running) |
 | `pnpm test:mcp` / `test:agent` | one suite |
@@ -675,6 +675,50 @@ headless Edge and fails on any console error.
 
 `next dev` binds dual-stack on `::`. Trying to bind `127.0.0.1` succeeds anyway and reports the port
 free while the site is up.
+
+---
+
+### A prompt cannot ask for what a binding cannot do
+
+Generated cards showed spec labels with **no values**, a price reading `229`
+instead of `$229`, and "Out of stock" on products that were in stock. Nothing
+errored.
+
+The house style was asking for four impossible things. An A2UI binding POINTS AT
+a value; it cannot format one, join two, or choose between them:
+
+| The rule said | What the model emitted | Why |
+|---|---|---|
+| prices as "$279" | `{"path": "price"}` -> `229` | no binding adds a currency symbol |
+| brand and rating on one line | `{"path": "brand"}` | bindings cannot concatenate |
+| out-of-stock products get a caption | literal `"Out of stock"` | literals live in the card *template*, so they apply to every product in the list |
+| a Row per spec | `{"path": "specs/type"}` | a nested path inside a List template resolves to nothing |
+
+Each one is the closest achievable thing to an unachievable instruction. The
+model was not being careless; it was being asked for something the runtime does
+not have.
+
+The fix was not a firmer prompt. `display_product()` in
+[a2ui.py](apps/agent/src/agent/a2ui.py) now precomputes every displayable string
+as a flat top-level field — `priceLabel`, `brandLine`, `stockLabel`,
+`spec1Label`/`spec1Value` — and **drops `specs` and `tags` entirely**, so the
+nested path is not merely discouraged, it is impossible.
+
+The general lesson, and the reason this is in the README rather than a commit
+message: when generated output is consistently a bit wrong, check whether you
+asked for something the runtime cannot express before you rewrite the prompt
+again.
+
+### The card grid is CSS, not a prompt
+
+"Three to five products per row depending on the screen" is not something the
+model can honour: it emits a component tree, cannot see the chat width, and
+cannot re-decide when you drag the resizer.
+
+So the column count is never stated. `a2ui-theme.css` turns the generated List
+into `repeat(auto-fill, minmax(168px, 1fr))` and the browser fits as many as the
+width allows, reflowing on every resize. The model emits the same tree either
+way.
 
 ---
 

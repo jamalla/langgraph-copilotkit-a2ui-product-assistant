@@ -221,3 +221,143 @@ def state_with_render_data(state: Any, facts: str) -> dict[str, Any]:
         {"description": RENDER_DATA_DESCRIPTION, "value": facts},
     ]
     return {**state, "ag-ui": ag_ui}
+
+
+# ---------------------------------------------------------------------------
+# Display projection
+# ---------------------------------------------------------------------------
+#
+# An A2UI binding can only POINT AT a value that already exists. It cannot
+# format one, concatenate two, or choose between them.
+#
+# The house style used to ask for exactly those things - "prices as $279",
+# "brand and rating on one line", "out-of-stock products get a caption". None
+# of them is expressible as a binding, so the subagent did the closest thing it
+# could and shipped: a bare `229`, the brand with the rating silently dropped,
+# and a LITERAL "Out of stock" on every card in the list, in-stock ones
+# included. Nothing errored; the surface was simply wrong.
+#
+# Worse, it bound spec values as {"path": "specs/type"} - a nested path inside a
+# List template, which resolves to nothing. Labels rendered, values came back
+# empty.
+#
+# So the model no longer formats anything and never sees a nested object. Every
+# string a card can display is precomputed here, flat, at the top level of each
+# product. The subagent's only job is choosing which of them to show and where.
+
+_SPEC_LABELS = {
+    "anc": "Noise cancelling",
+    "battery_hours": "Battery",
+    "cpu": "Processor",
+    "driver_mm": "Drivers",
+    "gpu": "Graphics",
+    "hot_swap": "Hot-swap",
+    "panel_type": "Panel",
+    "ram_gb": "Memory",
+    "refresh_hz": "Refresh rate",
+    "resolution": "Resolution",
+    "screen_inches": "Screen",
+    "screen_type": "Panel",
+    "storage_gb": "Storage",
+    "switch_type": "Switches",
+    "water_resistance": "Water resistance",
+    "weight_g": "Weight",
+    "weight_kg": "Weight",
+}
+
+_SPEC_UNITS = {
+    "battery_hours": " h",
+    "driver_mm": " mm",
+    "ram_gb": " GB",
+    "refresh_hz": " Hz",
+    "screen_inches": '"',
+    "storage_gb": " GB",
+    "weight_g": " g",
+    "weight_kg": " kg",
+}
+
+
+def _spec_label(key: str) -> str:
+    """A readable label, from the override map or derived from the key itself.
+
+    Deriving the fallback keeps this list short instead of becoming a third copy
+    of the one in apps/mcp - which the architecture forbids importing.
+    """
+    if key in _SPEC_LABELS:
+        return _SPEC_LABELS[key]
+    return key.replace("_", " ").capitalize()
+
+
+def _spec_value(key: str, value: Any) -> str:
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    return f"{value}{_SPEC_UNITS.get(key, '')}"
+
+
+def _compact(count: int) -> str:
+    if count >= 1000:
+        return f"{count / 1000:.1f}K".replace(".0K", "K")
+    return str(count)
+
+
+def display_product(product: dict[str, Any]) -> dict[str, Any]:
+    """One product, flattened into strings a binding can reach directly."""
+    price = product.get("price")
+    currency = "$" if product.get("currency", "USD") == "USD" else ""
+    rating = product.get("rating")
+    in_stock = bool(product.get("inStock"))
+
+    out: dict[str, Any] = {
+        "id": product.get("id"),
+        "name": product.get("name"),
+        "imageUrl": product.get("imageUrl"),
+        "imageAlt": product.get("imageAlt") or product.get("name"),
+        "description": product.get("shortDescription"),
+        "priceLabel": f"{currency}{price:,.0f}" if isinstance(price, (int, float)) else "",
+        "brandLine": " · ".join(
+            part
+            for part in (
+                str(product.get("brand") or "").upper(),
+                f"{rating} out of 5" if rating is not None else "",
+                f"{_compact(product.get('reviewCount') or 0)} reviews"
+                if product.get("reviewCount")
+                else "",
+            )
+            if part
+        ),
+        # Always present, always correct for THIS product - so the subagent can
+        # bind it unconditionally, which is the only thing it can do.
+        "stockLabel": "In stock" if in_stock else "Out of stock",
+    }
+
+    # Specs as flat, pre-labelled lines. Four is what fits a chat-width card.
+    specs = product.get("specs") or {}
+    for i, (key, value) in enumerate(list(specs.items())[:4], start=1):
+        out[f"spec{i}Label"] = _spec_label(key)
+        out[f"spec{i}Value"] = _spec_value(key, value)
+    for i in range(len(specs) + 1, 5):
+        out[f"spec{i}Label"] = ""
+        out[f"spec{i}Value"] = ""
+
+    return out
+
+
+def surface_for_display(surface: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Replace raw products in a surface with their display projections.
+
+    `specs` and `tags` are dropped rather than merely discouraged. Leaving a
+    nested object in the payload is an invitation to bind `specs/type` again,
+    and the failure is silent when it happens.
+    """
+    if not isinstance(surface, dict):
+        return surface
+    data = surface.get("data")
+    if not isinstance(data, dict):
+        return surface
+    products = data.get("products")
+    if not isinstance(products, list):
+        return surface
+    return {
+        **surface,
+        "data": {**data, "products": [display_product(p) for p in products]},
+    }
