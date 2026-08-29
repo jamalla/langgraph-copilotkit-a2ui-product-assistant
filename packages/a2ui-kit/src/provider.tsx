@@ -144,6 +144,8 @@ export interface A2UIChatProviderProps extends A2UIKitConfig {
   showJourney?: boolean;
 }
 
+const THREAD_KEY = "a2ui.threadId";
+
 /** A fresh conversation id. randomUUID needs a secure context; the fallback
  *  keeps this working on plain http during local development. */
 function newThreadId(): string {
@@ -151,6 +153,41 @@ function newThreadId(): string {
     return crypto.randomUUID();
   }
   return `thread-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * The thread survives a reload. Only "New chat" ends it.
+ *
+ * Minting a new id on every mount looked harmless and quietly broke the chat.
+ * Reloading the page started an empty conversation every time, so the
+ * "How this UI was generated" panel disappeared: it hides itself unless a
+ * `.a2ui-surface` is actually on screen, and after a reload there was never
+ * one. The panel was behaving correctly. The thread was the bug.
+ *
+ * sessionStorage rather than localStorage: a conversation belongs to a tab, and
+ * two tabs sharing one thread would interleave their turns. Wrapped in
+ * try/catch because private mode and blocked site data both throw on access,
+ * and a chat that will not mount is worse than one that forgets.
+ */
+function initialThreadId(): string {
+  try {
+    const saved = sessionStorage.getItem(THREAD_KEY);
+    if (saved) return saved;
+    const fresh = newThreadId();
+    sessionStorage.setItem(THREAD_KEY, fresh);
+    return fresh;
+  } catch {
+    return newThreadId();
+  }
+}
+
+function rememberThreadId(id: string): string {
+  try {
+    sessionStorage.setItem(THREAD_KEY, id);
+  } catch {
+    /* storage blocked: the id still works for this page's lifetime */
+  }
+  return id;
 }
 
 export function A2UIChatProvider({
@@ -161,7 +198,8 @@ export function A2UIChatProvider({
   showJourney = process.env.NEXT_PUBLIC_SHOW_TEACHING !== "false",
   ...config
 }: A2UIChatProviderProps) {
-  // We own the thread id rather than letting CopilotKit mint one internally.
+  // We own the thread id rather than letting CopilotKit mint one internally,
+  // and it persists for the tab so a reload does not discard the conversation.
   //
   // That is what makes "New chat" a `useState` call instead of a reach into
   // someone else's context: `threadId` is a documented prop on the popup, and
@@ -169,7 +207,7 @@ export function A2UIChatProvider({
   // `startNewThread()` from `useCopilotChatConfiguration()`, whose context is
   // created INSIDE the popup, so a sibling component read `null` and rendered
   // nothing at all.
-  const [threadId, setThreadId] = useState(newThreadId);
+  const [threadId, setThreadId] = useState(initialThreadId);
 
   return (
     <CopilotKitProvider runtimeUrl={runtimeUrl}>
@@ -184,7 +222,7 @@ export function A2UIChatProvider({
           labels={{ chatInputPlaceholder: inputPlaceholder }}
         />
         <ChatResizer />
-        <ChatSessionControls onNewChat={() => setThreadId(newThreadId())} />
+        <ChatSessionControls onNewChat={() => setThreadId(rememberThreadId(newThreadId()))} />
         <ChatPipelineSlot />
         {showJourney && <JourneyPanel />}
       </A2UIKitConfigProvider>

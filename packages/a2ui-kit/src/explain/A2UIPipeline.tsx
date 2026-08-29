@@ -49,6 +49,31 @@ interface AgentStateWithTrace {
   surface?: { kind?: string; title?: string; data?: { products?: unknown[] } };
 }
 
+function CopyButton({ value, label }: { value: unknown; label: string }) {
+  const [done, setDone] = useState(false);
+  const text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard?.writeText(text).then(
+          () => {
+            setDone(true);
+            setTimeout(() => setDone(false), 1400);
+          },
+          () => {
+            /* clipboard blocked: the JSON is still selectable below */
+          },
+        );
+      }}
+      className="rounded-control border border-line bg-surface px-1.5 py-0.5 text-[10px] font-medium text-ink-muted transition hover:border-line-strong hover:text-ink"
+    >
+      {done ? "copied" : label}
+    </button>
+  );
+}
+
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex min-w-0 gap-1.5">
@@ -363,7 +388,38 @@ export function A2UIPipeline() {
                   {String(trace.catalog_id ?? "-").split("/").pop()}
                 </span>
               </p>
-              <Code value={trace.operations} max={340} />
+              {trace.operations?.length ? (
+                <>
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-ink-faint">
+                      {trace.operations.length} operations, exactly as the model emitted them
+                    </span>
+                    <CopyButton value={trace.operations} label="copy JSON" />
+                  </div>
+                  <Code value={trace.operations} max={420} />
+                </>
+              ) : trace.components?.length ? (
+                <>
+                  {/* The envelope was not captured but the tree was. Show the
+                      tree rather than nothing: it is the part people came for. */}
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-ink-faint">
+                      the component tree the model wrote
+                    </span>
+                    <CopyButton value={trace.components} label="copy JSON" />
+                  </div>
+                  <Code value={trace.components} max={420} />
+                </>
+              ) : (
+                <p className="rounded-control border border-line bg-canvas px-2.5 py-2 text-[11px] leading-relaxed text-ink-muted">
+                  {/* Rendering a bare `null` here was its own small bug: it looked
+                      like the panel was broken rather than like the turn was. */}
+                  Nothing was generated for this turn.{" "}
+                  {trace.error
+                    ? "The request to the design model failed, so no operations were produced. The error is above."
+                    : "This answer was prose only, with no surface to build."}
+                </p>
+              )}
             </>
           )}
 
