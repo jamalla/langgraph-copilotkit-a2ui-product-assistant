@@ -34,6 +34,46 @@ interface Trace {
   data_model?: unknown;
   operations?: unknown[] | null;
   error?: string | null;
+  langsmith?: { enabled?: boolean; run_id?: string; url?: string };
+}
+
+/**
+ * A one-line summary shown on the COLLAPSED step.
+ *
+ * The panel is meant to be read at a glance: you should be able to see that
+ * step 5 called `search_products` and step 8 produced 38 components without
+ * opening anything. Detail stays behind the expander.
+ */
+function glance(step: JourneyStep, trace: Trace | null): string | null {
+  if (!trace) return null;
+  switch (step.live) {
+    case "question":
+      return trace.question ? `“${trace.question}”` : null;
+    case "route":
+      return trace.intent ? `→ ${trace.intent}` : null;
+    case "tools": {
+      const used = trace.tools_used ?? [];
+      return used.length ? used.map((t) => t.tool).join(" · ") : null;
+    }
+    case "surface":
+      return trace.surface_kind && trace.surface_kind !== "none"
+        ? `${trace.surface_kind} · ${trace.product_count ?? 0} products`
+        : null;
+    case "components": {
+      const n = trace.components?.length ?? 0;
+      return n ? `${n} components` : null;
+    }
+    case "operations": {
+      const n = trace.operations?.length ?? 0;
+      return n ? `${n} operations` : null;
+    }
+    case "dataModel":
+      return trace.data_model ? "bound" : null;
+    case "theme":
+      return "8 CSS variables";
+    default:
+      return null;
+  }
 }
 
 const STAGE_STYLE: Record<Stage, string> = {
@@ -236,6 +276,7 @@ export function JourneyPanel() {
           const prev = JOURNEY[i - 1];
           const crossing = !prev || prev.stage !== step.stage;
           const isOpen = expanded === step.id;
+          const hint = glance(step, trace);
 
           return (
             <li key={step.id}>
@@ -258,9 +299,16 @@ export function JourneyPanel() {
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs font-medium text-ink">{step.title}</span>
                     {!isOpen && (
-                      <span className="mt-0.5 block truncate font-mono text-[10px] text-ink-faint">
-                        {step.where}
-                      </span>
+                      <>
+                        <span className="mt-0.5 block truncate font-mono text-[10px] text-ink-faint">
+                          {step.where}
+                        </span>
+                        {hint && (
+                          <span className="mt-0.5 block truncate text-[10px] font-medium text-positive">
+                            {hint}
+                          </span>
+                        )}
+                      </>
                     )}
                   </span>
                   <span className="mt-0.5 text-[10px] text-ink-faint">{isOpen ? "−" : "+"}</span>
@@ -286,9 +334,29 @@ export function JourneyPanel() {
         })}
       </ol>
 
-      <footer className="border-t border-line px-4 py-2 text-[10.5px] leading-relaxed text-ink-faint">
-        Three boundaries, and most confusion is about which side of one you are on: browser →
-        runtime, runtime → agent, agent → browser.
+      <footer className="border-t border-line px-4 py-2.5">
+        {trace?.langsmith?.url ? (
+          <a
+            href={trace.langsmith.url}
+            target="_blank"
+            rel="noreferrer"
+            className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-brand hover:underline"
+          >
+            Open this run in LangSmith →
+          </a>
+        ) : (
+          <p className="mb-2 rounded-control border border-line bg-surface-2 px-2 py-1.5 text-[10.5px] leading-relaxed text-ink-muted">
+            Every step here is a summary. For the full tree — each prompt, token counts, and the
+            A2UI subagent&rsquo;s retries — set{" "}
+            <code className="font-mono text-ink">LANGSMITH_TRACING=true</code> and{" "}
+            <code className="font-mono text-ink">LANGSMITH_API_KEY</code> in <code>.env</code>, then
+            restart the agent. This panel will link straight to each run.
+          </p>
+        )}
+        <p className="text-[10.5px] leading-relaxed text-ink-faint">
+          Three boundaries, and most confusion is about which side of one you are on: browser →
+          runtime, runtime → agent, agent → browser.
+        </p>
       </footer>
     </aside>
   );

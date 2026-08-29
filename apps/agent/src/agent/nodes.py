@@ -713,6 +713,33 @@ def _presenter_brief(question: str, facts: str, instruction: str) -> str:
     )
 
 
+def _langsmith_run() -> dict[str, Any]:
+    """The current LangSmith run, if tracing is on.
+
+    Everything the journey panel shows is a summary. LangSmith has the full
+    tree — every prompt, every token count, the A2UI subagent's retries — so
+    the panel links straight to THIS run rather than to a project page you then
+    have to search.
+
+    Returns empty when tracing is off, which is the normal case: the panel then
+    shows how to switch it on instead of a dead link.
+    """
+    try:
+        from langsmith.run_helpers import get_current_run_tree
+        from langsmith.utils import tracing_is_enabled
+
+        if not tracing_is_enabled():
+            return {"enabled": False}
+
+        run = get_current_run_tree()
+        if run is None:
+            return {"enabled": True}
+        return {"enabled": True, "run_id": str(run.id), "url": run.get_url()}
+    except Exception:
+        # Tracing must never be able to break a turn.
+        return {"enabled": False}
+
+
 def _read_a2ui_envelope(envelope: Any) -> dict[str, Any]:
     """Pull the three A2UI operations apart for the pipeline panel.
 
@@ -803,6 +830,8 @@ async def _present_with_a2ui(
         "surface_title": (state.get("surface") or {}).get("title"),
         "product_count": len(((state.get("surface") or {}).get("data") or {}).get("products") or []),
         "surface_kind": (state.get("surface") or {}).get("kind"),
+        # Deep-link into the full trace for this exact run.
+        "langsmith": _langsmith_run(),
         "catalog_id": None,
         "surface_id": None,
         "components": None,

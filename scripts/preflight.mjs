@@ -119,6 +119,17 @@ if (!fs.existsSync(envFile)) {
   }
 }
 
+// ---- optional tracing --------------------------------------------------------
+
+if (fs.existsSync(envFile)) {
+  const env = fs.readFileSync(envFile, "utf8");
+  const on = /^LANGSMITH_TRACING=true$/m.test(env);
+  const key = /^LANGSMITH_API_KEY=lsv2_/m.test(env);
+  if (on && key) ok("LangSmith tracing", "on — the journey panel will link to each run");
+  else if (on && !key) warn("LANGSMITH_TRACING is true but no API key is set");
+  else notes.push("langsmith-off");
+}
+
 // ---- ports -----------------------------------------------------------------
 
 const PORTS = [
@@ -148,7 +159,17 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-if (notes.length > 0) {
+if (notes.includes("langsmith-off")) {
+  console.log(
+    dim(
+      "  LangSmith tracing is off. It is optional, but it is the difference between\n" +
+        "  a summary of each turn and the full tree: every prompt, token counts, and\n" +
+        "  the A2UI subagent retries. See .env.example.\n",
+    ),
+  );
+}
+
+if (notes.filter((n) => n !== "langsmith-off").length > 0) {
   console.log(
     dim(
       "  Ports already in use are fine if you meant to leave those services running.\n" +

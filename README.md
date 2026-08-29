@@ -105,7 +105,27 @@ the component types the subagent chose.
 The colour bands mark the three boundaries, and most confusion in this stack is about which side of
 one you are on: browser → runtime, runtime → agent, agent → browser.
 
+Each collapsed step shows what it did — `search_products`, `product_grid · 3 products`,
+`40 components`, `3 operations` — so the whole turn reads at a glance. Expand one for the
+explanation, the file path, and the trap people hit there.
+
 On by default in development (`showJourney` on `<A2UIChatProvider>`), off in production.
+
+### Going deeper: LangSmith
+
+The panel shows a summary. LangSmith has the full tree — every prompt sent, token counts per call,
+and how many times the A2UI subagent retried before its component tree validated. `langsmith` is
+already installed as a dependency of langchain, so it is three env vars:
+
+```bash
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=lsv2_...        # https://smith.langchain.com/settings
+LANGSMITH_PROJECT=a2ui-product-assistant
+```
+
+Restart the agent and the panel's footer becomes **"Open this run in LangSmith →"**, deep-linked to
+that exact run rather than a project page you then have to search. `pnpm preflight` reports whether
+tracing is on.
 
 ## How a single turn actually flows
 
