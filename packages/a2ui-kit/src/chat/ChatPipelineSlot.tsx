@@ -68,12 +68,17 @@ export function ChatPipelineSlot() {
         }
       }
 
-      // Pipeline panel: bottom of the chat body, just above the input.
+      // Pipeline panel: TOP of the chat body, directly under the tool list.
       //
-      // The message list would be a more natural home - right under the surface
-      // it explains - but it only exists once a message has been sent, and it
-      // is re-created as the thread changes. Anchoring to the chat body means
-      // the panel survives all of that.
+      // It used to be appended, making it the last child of `.copilotKitChat`,
+      // below the message list and the input box. `.copilotKitChat` is
+      // `overflow: hidden` so the chat cannot grow a second scrollbar, which
+      // meant the panel was mounted, populated, and clipped entirely out of
+      // view. Nothing errored, the node was in the DOM the whole time, and the
+      // tool list a few lines above worked because it prepends.
+      //
+      // Two panels at the top, in a fixed order: what the agent can do, then
+      // what it just built.
       if (!body) return false;
 
       const existing = document.getElementById(MOUNT_ID);
@@ -84,8 +89,17 @@ export function ChatPipelineSlot() {
 
       mount = existing ?? document.createElement("div");
       mount.id = MOUNT_ID;
-      mount.style.padding = "0 0.75rem";
-      body.appendChild(mount);
+      mount.style.padding = "0 0.75rem 0.5rem";
+
+      // After the tool list when it is there, otherwise first. Never appended:
+      // the end of this container is off-screen.
+      const tools = document.getElementById(TOOLS_ID);
+      if (tools && body.contains(tools)) {
+        tools.after(mount);
+      } else {
+        body.prepend(mount);
+      }
+
       setHost(mount);
       return true;
     };

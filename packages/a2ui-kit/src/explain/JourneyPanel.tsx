@@ -104,6 +104,38 @@ function Code({ value, max = 190 }: { value: unknown; max?: number }) {
   );
 }
 
+/**
+ * Lets the generated code out of the panel.
+ *
+ * This is the artifact people actually want when they open the explainer: the
+ * tree the model wrote. Being able to read it and not copy it is a poor place
+ * to stop.
+ */
+function Copy({ value }: { value: unknown }) {
+  const [done, setDone] = useState(false);
+  const text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        void navigator.clipboard?.writeText(text).then(
+          () => {
+            setDone(true);
+            setTimeout(() => setDone(false), 1400);
+          },
+          () => {
+            /* clipboard blocked: the JSON is still selectable below */
+          },
+        )
+      }
+      className="rounded-control border border-line bg-surface px-1.5 py-0.5 text-[10px] font-medium text-ink-muted transition hover:border-line-strong hover:text-ink"
+    >
+      {done ? "copied" : "copy"}
+    </button>
+  );
+}
+
 /** What this step did on the most recent turn, if anything. */
 function LiveData({ step, trace }: { step: JourneyStep; trace: Trace | null }) {
   if (!trace || !step.live) return null;
@@ -175,6 +207,11 @@ function LiveData({ step, trace }: { step: JourneyStep; trace: Trace | null }) {
               </span>
             ))}
           </div>
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <span className="text-[10px] text-ink-faint">the tree the model wrote</span>
+            <Copy value={list} />
+          </div>
+          <Code value={list} max={220} />
         </div>
       );
     }
@@ -184,7 +221,15 @@ function LiveData({ step, trace }: { step: JourneyStep; trace: Trace | null }) {
 
     case "operations":
       return trace.operations?.length ? (
-        <Code value={trace.operations} max={200} />
+        <div className="mt-1.5">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-[10px] text-ink-faint">
+              {trace.operations.length} operations, exactly as sent
+            </span>
+            <Copy value={trace.operations} />
+          </div>
+          <Code value={trace.operations} max={260} />
+        </div>
       ) : null;
 
     case "theme":
