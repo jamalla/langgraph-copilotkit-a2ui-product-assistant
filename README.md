@@ -444,6 +444,66 @@ free while the site is up.
 
 ---
 
+## Running it in Docker
+
+All three services ship in **one image**. They are one product — the web app cannot
+answer without the agent, and the agent cannot answer without the MCP server — and
+only the web app needs to be reachable from outside.
+
+```
+container
+  :$PORT  next start        <- the only public port
+  :2024   langgraph dev     <- internal, loopback only
+  :8931   fastmcp           <- internal, loopback only
+```
+
+```bash
+docker compose up --build          # then open http://localhost:3000
+```
+
+Or without compose:
+
+```bash
+docker build -t a2ui-assistant .
+docker run --rm -p 3000:3000 --env-file .env a2ui-assistant
+```
+
+`.env` is excluded by `.dockerignore` on purpose: **secrets never enter an image
+layer**, because layers are cached, pushed, and readable by anyone who pulls the
+image. `OPENAI_API_KEY` arrives at run time or not at all.
+
+`docker/start.sh` starts the three processes in dependency order and waits for each
+to answer before starting the next, so the public port only opens once the whole
+chain is up. It exits as soon as *any* of them dies — a container that serves the
+catalog while the agent is dead is worse than one that restarts.
+
+### Deploying to Render
+
+`render.yaml` is a blueprint: **New → Blueprint**, point it at the repo, and paste
+`OPENAI_API_KEY` when prompted.
+
+Three things about Render specifically:
+
+- **`PORT` is injected and `EXPOSE` is ignored.** Render publishes exactly one port
+  and tells you which through `$PORT`; `start.sh` binds the web app to it. This is
+  why the app is not hardcoded to 3000 in the container.
+- **Use the Standard plan, not Starter.** Node plus two Python runtimes will not fit
+  in 512 MB. They OOM partway through boot, and Render reports that as a failed
+  deploy rather than as an out-of-memory kill — a confusing hour if you do not
+  expect it.
+- **`healthCheckPath: /api/products`.** It is served by the web app and reads the
+  catalog, so a pass means the thing users actually hit is working.
+
+Two honest caveats for a hosted deployment:
+
+- `langgraph dev` is a development server. It is what makes LangGraph Studio and
+  in-memory checkpointing work, and it is fine for a demo, but it is not what you
+  would put in front of real traffic. The production path is LangGraph Platform, or
+  a FastAPI host — either way `LANGGRAPH_DEPLOYMENT_URL` is the only thing that
+  changes.
+- Conversation state lives in memory and on the container filesystem, so a redeploy
+  or restart drops it. Threads are not durable across deploys.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |

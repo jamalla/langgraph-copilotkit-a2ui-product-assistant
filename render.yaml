@@ -1,0 +1,47 @@
+# Render blueprint — https://render.com/docs/blueprint-spec
+#
+#   Render dashboard → New → Blueprint → point it at this repo.
+#
+# One service, not three. The image already contains the web app, the agent,
+# and the MCP server; only the web app is public. Splitting them into three
+# Render services would mean three billed instances and cross-service HTTP for
+# traffic that currently never leaves the loopback interface.
+
+services:
+  - type: web
+    name: a2ui-assistant
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    # Three processes — Next.js plus two Python runtimes — do not fit in the
+    # 512 MB Starter instance. They OOM partway through boot, which Render
+    # reports as a failed deploy rather than as an out-of-memory kill.
+    plan: standard
+
+    region: oregon
+
+    healthCheckPath: /api/products
+
+    envVars:
+      # sync: false means Render prompts you for the value on first deploy and
+      # stores it encrypted. It is never written to this file and never enters
+      # an image layer.
+      - key: OPENAI_API_KEY
+        sync: false
+
+      # LangSmith tracing. Delete this block if you do not use it.
+      - key: LANGSMITH_TRACING
+        value: "true"
+      - key: LANGSMITH_API_KEY
+        sync: false
+      - key: LANGSMITH_PROJECT
+        value: A2UI
+
+      # PORT is injected by Render; start.sh reads it. The rest are internal
+      # wiring and already baked into the image — repeated here so the whole
+      # topology is readable in one place.
+      - key: MCP_SERVER_URL
+        value: http://127.0.0.1:8931/mcp
+      - key: LANGGRAPH_DEPLOYMENT_URL
+        value: http://127.0.0.1:2024

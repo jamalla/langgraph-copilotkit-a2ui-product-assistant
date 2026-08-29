@@ -1,0 +1,38 @@
+# One service, because the image already contains all three processes.
+#
+#   docker compose up --build      then open http://localhost:3000
+#
+# Compose is here for what a plain `docker run` makes awkward: reading .env,
+# restarting on failure, and keeping the port map somewhere you can read it.
+
+services:
+  assistant:
+    build: .
+    image: a2ui-assistant
+
+    # Everything from .env — OPENAI_API_KEY, and LANGSMITH_* if you use it.
+    # Nothing secret is baked into the image; .dockerignore keeps .env out.
+    env_file:
+      - .env
+
+    ports:
+      - "3000:3000"   # the app
+      # Uncomment to reach these from the host:
+      # - "2024:2024" # LangGraph Studio  https://smith.langchain.com/studio/?baseUrl=http://localhost:2024
+      # - "8931:8931" # MCP server        http://localhost:8931/tools.json
+
+    # start.sh exits when any of the three processes dies, which turns a
+    # half-dead container into a restart rather than a silent outage.
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:3000/api/copilotkit/info"]
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+
+    # Edit products without rebuilding: both the web app and the MCP server
+    # re-read this file when its mtime changes.
+    volumes:
+      - ./data:/app/data:ro

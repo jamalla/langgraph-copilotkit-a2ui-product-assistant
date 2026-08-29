@@ -1,0 +1,27 @@
+# Build inputs only. Everything here is either regenerated inside the image,
+# machine-specific, or a secret.
+
+**/node_modules
+**/.venv
+**/.next
+**/dist
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/*.egg-info
+.git
+.langgraph_api
+
+# Secrets never enter an image layer. Pass them at run time:
+#   docker run --env-file .env …
+.env
+.env.*
+!.env.example
+
+# Host-only tooling and scratch
+scripts/*.mjs
+*.log
+.vscode
+.idea
