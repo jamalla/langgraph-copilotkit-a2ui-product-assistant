@@ -22,8 +22,12 @@ export interface Product {
   reviewCount: number;
   inStock: boolean;
   stockCount: number;
-  /** Hex colour used to generate the product tile gradient. No image assets. */
+  /** Hex colour behind the photo, and the whole tile when there is none. */
   accent: string;
+  /** Path under public/, e.g. "/products/lp-001.jpg". Absent = gradient tile. */
+  imageUrl?: string;
+  /** Alt text from the photographer's own description of the shot. */
+  imageAlt?: string;
   shortDescription: string;
   specs: Record<string, SpecValue>;
   tags: string[];

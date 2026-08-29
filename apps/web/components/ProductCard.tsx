@@ -30,6 +30,8 @@ export function ProductCard({
       <ProductTile
         name={product.name}
         accent={product.accent}
+        imageUrl={product.imageUrl}
+        imageAlt={product.imageAlt}
         className="h-36 w-full shrink-0"
       />
 

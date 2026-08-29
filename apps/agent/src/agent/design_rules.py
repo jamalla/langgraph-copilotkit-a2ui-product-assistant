@@ -45,6 +45,7 @@ Layout
   List so it does not repeat.
 
 Inside a product Card, in this order
+0. Image — the product photo, bound to imageUrl (see Images below).
 1. Text variant="h3" — the product name.
 2. Text variant="h2" — the price, formatted with a currency symbol. Price is
    the number people scan for; it earns the larger size.
@@ -54,9 +55,20 @@ Inside a product Card, in this order
    value on the right. Show at most four specs, and choose the ones that
    matter for what the user asked.
 
+Images
+- Every product carries an "imageUrl" (a path like "/products/lp-001.jpg") and
+  an "imageAlt". Put an Image as the FIRST child of each product Card, before
+  the name, bound to that product's imageUrl.
+- Use the imageUrl from the data VERBATIM. Never invent one, never guess a
+  filename from the product id, never use an external URL. An invented path
+  renders as a broken box, and it will look like our bug, not yours.
+- Always set the Image alt from imageAlt. A card that is mostly photograph is
+  useless to a screen reader without it.
+- One image per Card, never a gallery, and never an Image anywhere else in the
+  surface.
+
 Never
-- Never use Image. This catalog has no product photography, and invented image
-  URLs render as broken boxes.
+- Never use an Image for a product that has no imageUrl - fall back to text.
 - Never repeat the same value in two components of one Card.
 - Never put raw ids (hp-001) in front of the user; they are for tool calls.
 - Never show a spec that is identical across every product on screen — it

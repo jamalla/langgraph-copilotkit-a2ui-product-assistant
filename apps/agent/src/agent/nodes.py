@@ -177,7 +177,7 @@ def _to_message_content(result: Any) -> str:
     return json.dumps(result, default=str)
 
 
-def _confirm_write(call: dict[str, Any]) -> dict[str, Any]:
+def _confirm_write(call: dict[str, Any], names: dict[str, str] | None = None) -> dict[str, Any]:
     """Pause the graph and ask the human before performing a write.
 
     `interrupt()` does something no ordinary `await` can: it SUSPENDS the graph
@@ -201,7 +201,7 @@ def _confirm_write(call: dict[str, Any]) -> dict[str, Any]:
             "kind": "confirm_write",
             "tool": call["name"],
             "args": call["args"],
-            "summary": _describe_write(call),
+            "summary": _describe_write(call, names),
         }
     )
     if isinstance(answer, dict):
@@ -210,10 +210,18 @@ def _confirm_write(call: dict[str, Any]) -> dict[str, Any]:
     return {"approved": bool(answer)}
 
 
-def _describe_write(call: dict[str, Any]) -> str:
-    """One plain sentence for the confirmation dialog."""
+def _describe_write(call: dict[str, Any], names: dict[str, str] | None = None) -> str:
+    """One plain sentence for the confirmation dialog.
+
+    `names` maps product ids to product names. The model only ever passes ids,
+    so without it this asks "Add 1 unit of hp-006 to your cart?" - correct, and
+    the wrong register for the one moment a person is being asked to decide
+    something. Falls back to the id when the name is not known, which is better
+    than refusing to ask.
+    """
     args = call.get("args") or {}
     product_id = args.get("product_id", "?")
+    product_id = (names or {}).get(product_id, product_id)
     if call["name"] == "add_to_cart":
         quantity = args.get("quantity", 1)
         unit = "unit" if quantity == 1 else "units"
@@ -222,6 +230,13 @@ def _describe_write(call: dict[str, Any]) -> str:
         return f"Remove {product_id} from your cart?"
     return f"Run {call['name']}?"
 
+
+FACTS_BUDGET = 14000
+"""How much serialised surface data the A2UI subagent is shown.
+
+Roughly 750 bytes per product now that each carries a photo path and alt text,
+so this holds a full 18-product result with room to spare.
+"""
 
 WRITE_TOOLS = frozenset({"add_to_cart", "remove_from_cart"})
 """Tools that change state and therefore need a human to say yes.
@@ -240,6 +255,7 @@ async def _run_tool_loop(
     context: str | None = None,
     config: RunnableConfig | None = None,
     confirm_before: frozenset[str] = frozenset(),
+    names: dict[str, str] | None = None,
 ) -> tuple[str, list[tuple[str, Any]]]:
     """Run one worker to completion.
 
@@ -282,7 +298,7 @@ async def _run_tool_loop(
                 )
                 continue
             if call["name"] in confirm_before:
-                decision = _confirm_write(call)
+                decision = _confirm_write(call, names)
                 if not decision.get("approved"):
                     parsed = {
                         "ok": False,
@@ -570,6 +586,14 @@ async def cart_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any
         config=config,
         # The only worker that can write is also the only one that pauses.
         confirm_before=WRITE_TOOLS,
+        # So the dialog can say "Pulse Buds Lite" instead of "hp-006". These are
+        # the products already on screen this conversation, which is exactly the
+        # set a user can be asking to add.
+        names={
+            p["id"]: p["name"]
+            for p in (state.get("last_results") or [])
+            if p.get("id") and p.get("name")
+        },
     )
 
     cart = _results_from(collected, "view_cart")
@@ -674,8 +698,15 @@ async def presenter(state: AgentState, config: RunnableConfig) -> dict[str, Any]
     # The exact marker the PRESENTER prompt keys off to distinguish "we looked
     # and found nothing" from "we never looked". Shared constant so the two
     # cannot drift apart.
+    # Cap the payload, but leave real headroom. This slice is taken on SERIALISED
+    # JSON, so cutting short does not drop a clean trailing product - it produces
+    # a truncated, invalid JSON string in the subagent's prompt, and the last card
+    # silently loses whatever field the cut landed in. Adding imageUrl/imageAlt
+    # pushed eight products to ~6.2 KB, which is how the old 6000 cap was found.
     facts = (
-        json.dumps(surface, default=str)[:6000] if surface else prompts.NO_WORK_MARKER
+        json.dumps(surface, default=str)[:FACTS_BUDGET]
+        if surface
+        else prompts.NO_WORK_MARKER
     )
     question = _last_user_text(state["messages"])
 

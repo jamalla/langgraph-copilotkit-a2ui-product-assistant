@@ -1,6 +1,8 @@
 [
   {
     "id": "lp-001",
+    "imageUrl": "/products/lp-001.jpg",
+    "imageAlt": "a laptop computer sitting on top of a wooden desk",
     "name": "Aurora Book Pro 14",
     "brand": "Lumen",
     "category": "laptops",
@@ -28,6 +30,8 @@
   },
   {
     "id": "lp-002",
+    "imageUrl": "/products/lp-002.jpg",
+    "imageAlt": "MacBook Pro on top of brown table",
     "name": "Aurora Book Air 13",
     "brand": "Lumen",
     "category": "laptops",
@@ -55,6 +59,8 @@
   },
   {
     "id": "lp-003",
+    "imageUrl": "/products/lp-003.jpg",
+    "imageAlt": "a laptop computer sitting on top of a white desk",
     "name": "Nimbus XPS 15",
     "brand": "Corvid",
     "category": "laptops",
@@ -82,6 +88,8 @@
   },
   {
     "id": "lp-004",
+    "imageUrl": "/products/lp-004.jpg",
+    "imageAlt": "a close up of a keyboard with a blue background",
     "name": "Vantage Gaming G16",
     "brand": "Kestrel",
     "category": "laptops",
@@ -109,6 +117,8 @@
   },
   {
     "id": "lp-005",
+    "imageUrl": "/products/lp-005.jpg",
+    "imageAlt": "Above view of woman working with computer laptop on white office desk",
     "name": "ThinkFrame T14s",
     "brand": "Meridian",
     "category": "laptops",
@@ -136,6 +146,8 @@
   },
   {
     "id": "lp-006",
+    "imageUrl": "/products/lp-006.jpg",
+    "imageAlt": "Close up view man holding stylus pen writing on empty screen of computer tablet",
     "name": "Helix Flip 14",
     "brand": "Meridian",
     "category": "laptops",
@@ -163,6 +175,8 @@
   },
   {
     "id": "lp-007",
+    "imageUrl": "/products/lp-007.jpg",
+    "imageAlt": "a woman sitting on a couch using a laptop computer",
     "name": "Zephyr Chrome 15",
     "brand": "Kestrel",
     "category": "laptops",
@@ -190,6 +204,8 @@
   },
   {
     "id": "lp-008",
+    "imageUrl": "/products/lp-008.jpg",
+    "imageAlt": "A man sitting in front of a laptop computer",
     "name": "Forge Studio 16",
     "brand": "Lumen",
     "category": "laptops",
@@ -218,6 +234,8 @@
 
   {
     "id": "hp-001",
+    "imageUrl": "/products/hp-001.jpg",
+    "imageAlt": "a pair of headphones sitting on top of each other",
     "name": "Aether NC 900",
     "brand": "Sonare",
     "category": "headphones",
@@ -243,6 +261,8 @@
   },
   {
     "id": "hp-002",
+    "imageUrl": "/products/hp-002.jpg",
+    "imageAlt": "a pair of headphones hanging from the ceiling",
     "name": "Aether NC 700",
     "brand": "Sonare",
     "category": "headphones",
@@ -268,6 +288,8 @@
   },
   {
     "id": "hp-003",
+    "imageUrl": "/products/hp-003.jpg",
+    "imageAlt": "gray and brown corded headphones",
     "name": "Quiet Comfort Elite",
     "brand": "Halcyon",
     "category": "headphones",
@@ -293,6 +315,8 @@
   },
   {
     "id": "hp-004",
+    "imageUrl": "/products/hp-004.jpg",
+    "imageAlt": "Wide angle at music producer operating audio workstation in professional recording studio, copy space",
     "name": "Studio Ref 80",
     "brand": "Vertex Audio",
     "category": "headphones",
@@ -318,6 +342,8 @@
   },
   {
     "id": "hp-005",
+    "imageUrl": "/products/hp-005.jpg",
+    "imageAlt": "a pair of black earbuds in a case",
     "name": "Pulse Buds Pro 3",
     "brand": "Sonare",
     "category": "headphones",
@@ -343,6 +369,8 @@
   },
   {
     "id": "hp-006",
+    "imageUrl": "/products/hp-006.jpg",
+    "imageAlt": "White earbuds on a blue background",
     "name": "Pulse Buds Lite",
     "brand": "Sonare",
     "category": "headphones",
@@ -368,6 +396,8 @@
   },
   {
     "id": "hp-007",
+    "imageUrl": "/products/hp-007.jpg",
+    "imageAlt": "Two pretty young women running in urban area",
     "name": "Trailhead Sport",
     "brand": "Kinetik",
     "category": "headphones",
@@ -393,6 +423,8 @@
   },
   {
     "id": "hp-008",
+    "imageUrl": "/products/hp-008.jpg",
+    "imageAlt": "a pair of headphones sitting on top of a couch",
     "name": "Nomad Over-Ear 2",
     "brand": "Kinetik",
     "category": "headphones",
@@ -419,6 +451,8 @@
 
   {
     "id": "mn-001",
+    "imageUrl": "/products/mn-001.jpg",
+    "imageAlt": "a computer monitor sitting on top of a desk",
     "name": "ClearView 27 4K Pro",
     "brand": "Lucent",
     "category": "monitors",
@@ -445,6 +479,8 @@
   },
   {
     "id": "mn-002",
+    "imageUrl": "/products/mn-002.jpg",
+    "imageAlt": "a desk with a monitor, keyboard and speakers",
     "name": "ClearView 32 5K",
     "brand": "Lucent",
     "category": "monitors",
@@ -471,6 +507,8 @@
   },
   {
     "id": "mn-003",
+    "imageUrl": "/products/mn-003.jpg",
+    "imageAlt": "PC at home with shooter game launched on. FPS experience virtual reality",
     "name": "Velocity 27 QHD 240",
     "brand": "Kestrel",
     "category": "monitors",
@@ -497,6 +535,8 @@
   },
   {
     "id": "mn-004",
+    "imageUrl": "/products/mn-004.jpg",
+    "imageAlt": "Gamer computer and equipments on the gaming desk under the neon colored spotlights",
     "name": "Velocity 27 OLED 360",
     "brand": "Kestrel",
     "category": "monitors",
@@ -523,6 +563,8 @@
   },
   {
     "id": "mn-005",
+    "imageUrl": "/products/mn-005.jpg",
+    "imageAlt": "black and white laptop computer",
     "name": "Panorama 34 UW",
     "brand": "Lucent",
     "category": "monitors",
@@ -549,6 +591,8 @@
   },
   {
     "id": "mn-006",
+    "imageUrl": "/products/mn-006.jpg",
+    "imageAlt": "Young beautiful woman working in a broadcast control room on a tv station",
     "name": "Studio Color 27",
     "brand": "Chroma Labs",
     "category": "monitors",
@@ -575,6 +619,8 @@
   },
   {
     "id": "mn-007",
+    "imageUrl": "/products/mn-007.jpg",
+    "imageAlt": "a white monitor with a black stand",
     "name": "Essential 24 FHD",
     "brand": "Lucent",
     "category": "monitors",
@@ -602,6 +648,8 @@
 
   {
     "id": "kb-001",
+    "imageUrl": "/products/kb-001.jpg",
+    "imageAlt": "a keyboard and a mouse on a table",
     "name": "Tactile 75 Wireless",
     "brand": "Keyforge",
     "category": "keyboards",
@@ -627,6 +675,8 @@
   },
   {
     "id": "kb-002",
+    "imageUrl": "/products/kb-002.jpg",
+    "imageAlt": "a black and white keyboard with red keys",
     "name": "Tactile 65 Compact",
     "brand": "Keyforge",
     "category": "keyboards",
@@ -652,6 +702,8 @@
   },
   {
     "id": "kb-003",
+    "imageUrl": "/products/kb-003.jpg",
+    "imageAlt": "a person typing on a keyboard in front of a game zone sign",
     "name": "Linear 87 Pro",
     "brand": "Keyforge",
     "category": "keyboards",
@@ -677,6 +729,8 @@
   },
   {
     "id": "kb-004",
+    "imageUrl": "/products/kb-004.jpg",
+    "imageAlt": "a computer keyboard sitting on top of a wooden desk",
     "name": "Silent Office 104",
     "brand": "Meridian",
     "category": "keyboards",
@@ -702,6 +756,8 @@
   },
   {
     "id": "kb-005",
+    "imageUrl": "/products/kb-005.jpg",
+    "imageAlt": "hands on a keyboard",
     "name": "Ergo Split Wave",
     "brand": "Meridian",
     "category": "keyboards",
@@ -727,6 +783,8 @@
   },
   {
     "id": "kb-006",
+    "imageUrl": "/products/kb-006.jpg",
+    "imageAlt": "A gray mechanical keyboard on a marble surface",
     "name": "Nomad 60 Low-Profile",
     "brand": "Kinetik",
     "category": "keyboards",
@@ -752,6 +810,8 @@
   },
   {
     "id": "kb-007",
+    "imageUrl": "/products/kb-007.jpg",
+    "imageAlt": "a calculator with a keypad",
     "name": "Clicky 98 Retro",
     "brand": "Keyforge",
     "category": "keyboards",

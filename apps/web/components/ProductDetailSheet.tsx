@@ -40,6 +40,8 @@ export function ProductDetailSheet({
         <ProductTile
           name={product.name}
           accent={product.accent}
+          imageUrl={product.imageUrl}
+          imageAlt={product.imageAlt}
           size="hero"
           className="h-40 w-full shrink-0"
         />
