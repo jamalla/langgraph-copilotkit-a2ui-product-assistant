@@ -77,6 +77,15 @@ the catalog file, your API key and all three ports before anything starts.
 
 ---
 
+## Learning it: the explainer
+
+Open [`a2ui-explainer.html`](a2ui-explainer.html) in a browser — a standalone, twelve-step player
+that traces one real question from typed sentence to mounted React. Each step names the file that
+does the work, shows the code, and shows what that step produced on an actual run. Arrow keys to
+step, space to play, number keys to jump.
+
+No build, no server, no dependencies — one file you can send to someone.
+
 ## Learning it: the journey panel
 
 Click **"How A2UI works"** on the left edge. It walks the twelve hops from your question to

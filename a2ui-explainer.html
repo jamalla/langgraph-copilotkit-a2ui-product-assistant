@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Twelve Hops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* ── tokens ────────────────────────────────────────────────────────────────
+   Light is the base. Dark redefines ONLY these values, twice: once for the
+   un-stamped system-preference state, once for an explicit toggle. Nothing
+   below this block declares a colour literal. */
+:root{
+  --paper:#f6f7f9; --surface:#ffffff; --sunken:#eef1f5;
+  --ink:#14171c; --ink-2:#4a5260; --ink-3:#798291;
+  --rule:#e0e4ea; --rule-2:#c9d0da;
+  --browser:#4338ca; --runtime:#a1610a; --agent:#15803d; --render:#6d28d9;
+  --accent:#4338ca; --accent-ink:#ffffff;
+  --shadow:0 1px 2px rgb(16 22 34/.05), 0 8px 24px rgb(16 22 34/.06);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0d0f13; --surface:#161a20; --sunken:#11141a;
+    --ink:#e9edf3; --ink-2:#a4aebd; --ink-3:#6f7988;
+    --rule:#262c35; --rule-2:#39414d;
+    --browser:#8b83f5; --runtime:#e0a33a; --agent:#4ade80; --render:#b492f7;
+    --accent:#8b83f5; --accent-ink:#0d0f13;
+    --shadow:0 1px 2px rgb(0 0 0/.5), 0 8px 24px rgb(0 0 0/.4);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0d0f13; --surface:#161a20; --sunken:#11141a;
+  --ink:#e9edf3; --ink-2:#a4aebd; --ink-3:#6f7988;
+  --rule:#262c35; --rule-2:#39414d;
+  --browser:#8b83f5; --runtime:#e0a33a; --agent:#4ade80; --render:#b492f7;
+  --accent:#8b83f5; --accent-ink:#0d0f13;
+  --shadow:0 1px 2px rgb(0 0 0/.5), 0 8px 24px rgb(0 0 0/.4);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font:400 15px/1.6 "IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:Archivo,ui-sans-serif,system-ui,sans-serif;text-wrap:balance;margin:0}
+code,kbd,pre,.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.shell{max-width:1240px;margin:0 auto;padding:28px 22px 40px;display:flex;flex-direction:column;gap:20px;min-height:100vh}
+
+/* ── masthead ─────────────────────────────────────────────────────────── */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.eyebrow{font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-size:clamp(30px,4.4vw,46px);font-weight:800;letter-spacing:-.025em;margin-top:8px}
+.sub{color:var(--ink-2);max-width:60ch;margin-top:8px;font-size:14.5px}
+.themer{border:1px solid var(--rule);background:var(--surface);color:var(--ink-2);
+  border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:14px;flex:0 0 auto}
+.themer:hover{border-color:var(--rule-2);color:var(--ink)}
+
+/* ── signal rail: the thesis. four bands, three crossings ─────────────── */
+.rail{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:16px 18px 12px;box-shadow:var(--shadow)}
+.bands{display:flex;gap:3px}
+.band{flex:1 1 0;min-width:0}
+.band-label{font:500 10px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.band[data-s="browser"] .band-label{color:var(--browser)}
+.band[data-s="runtime"] .band-label{color:var(--runtime)}
+.band[data-s="agent"]   .band-label{color:var(--agent)}
+.band[data-s="render"]  .band-label{color:var(--render)}
+.ticks{display:flex;gap:3px}
+.tick{flex:1 1 0;height:8px;border-radius:3px;background:var(--sunken);border:1px solid var(--rule);
+  cursor:pointer;padding:0;transition:transform .16s ease,background .16s ease}
+.tick:hover{transform:translateY(-2px)}
+.tick[data-done="1"][data-s="browser"]{background:var(--browser);border-color:var(--browser)}
+.tick[data-done="1"][data-s="runtime"]{background:var(--runtime);border-color:var(--runtime)}
+.tick[data-done="1"][data-s="agent"]{background:var(--agent);border-color:var(--agent)}
+.tick[data-done="1"][data-s="render"]{background:var(--render);border-color:var(--render)}
+.tick[data-now="1"]{height:14px;margin-top:-3px;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.crossings{display:flex;justify-content:space-between;margin-top:9px;
+  font:500 10px/1 "IBM Plex Mono",monospace;color:var(--ink-3)}
+
+/* ── main split ───────────────────────────────────────────────────────── */
+.split{display:grid;grid-template-columns:246px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.split{grid-template-columns:1fr}}
+
+.list{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:6px;
+  box-shadow:var(--shadow);max-height:560px;overflow-y:auto}
+.item{display:flex;gap:9px;width:100%;text-align:left;background:none;border:0;cursor:pointer;
+  padding:8px 9px;border-radius:9px;color:var(--ink-2);font-size:12.5px;line-height:1.35;align-items:flex-start}
+.item:hover{background:var(--sunken)}
+.item[aria-current="true"]{background:var(--sunken);color:var(--ink);font-weight:500}
+.item .n{font:500 10px/1.6 "IBM Plex Mono",monospace;color:var(--ink-3);flex:0 0 16px;
+  font-variant-numeric:tabular-nums}
+.item[aria-current="true"] .n{color:var(--accent)}
+.item .dot{flex:0 0 5px;height:5px;border-radius:50%;margin-top:7px}
+.dot[data-s="browser"]{background:var(--browser)} .dot[data-s="runtime"]{background:var(--runtime)}
+.dot[data-s="agent"]{background:var(--agent)}     .dot[data-s="render"]{background:var(--render)}
+
+/* ── stage ────────────────────────────────────────────────────────────── */
+.stage{background:var(--surface);border:1px solid var(--rule);border-radius:14px;
+  padding:26px 26px 20px;box-shadow:var(--shadow);min-height:520px;display:flex;flex-direction:column;gap:16px}
+.stage-head{display:flex;gap:14px;align-items:flex-start}
+.big-n{font:800 40px/.9 Archivo,sans-serif;letter-spacing:-.03em;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;flex:0 0 auto}
+.where-chip{display:inline-flex;align-items:center;gap:6px;font:500 10px/1 "IBM Plex Mono",monospace;
+  letter-spacing:.1em;text-transform:uppercase;padding:4px 8px;border-radius:999px;border:1px solid}
+.where-chip[data-s="browser"]{color:var(--browser);border-color:color-mix(in srgb,var(--browser) 35%,transparent)}
+.where-chip[data-s="runtime"]{color:var(--runtime);border-color:color-mix(in srgb,var(--runtime) 35%,transparent)}
+.where-chip[data-s="agent"]{color:var(--agent);border-color:color-mix(in srgb,var(--agent) 35%,transparent)}
+.where-chip[data-s="render"]{color:var(--render);border-color:color-mix(in srgb,var(--render) 35%,transparent)}
+h2{font-size:24px;font-weight:700;letter-spacing:-.02em;margin-top:9px}
+.what{color:var(--ink-2);max-width:66ch;font-size:14.5px}
+
+.file{display:flex;align-items:center;gap:9px;background:var(--sunken);border:1px solid var(--rule);
+  border-radius:9px;padding:9px 11px;overflow-x:auto}
+.file .tag{font:500 9.5px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);flex:0 0 auto}
+.file .path{font:500 12.5px/1.4 "IBM Plex Mono",monospace;color:var(--ink);white-space:nowrap}
+
+pre{margin:0;background:var(--sunken);border:1px solid var(--rule);border-radius:10px;
+  padding:13px 15px;overflow-x:auto;font-size:12px;line-height:1.65;color:var(--ink-2)}
+pre b{color:var(--ink);font-weight:600}
+pre i{color:var(--ink-3);font-style:normal}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+.panel{display:flex;flex-direction:column;gap:6px;min-width:0}
+.panel h3{font:600 10px/1 "IBM Plex Mono",monospace;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+
+.trap{border:1px solid color-mix(in srgb,var(--runtime) 32%,transparent);
+  background:color-mix(in srgb,var(--runtime) 7%,transparent);border-radius:10px;padding:11px 13px;
+  font-size:13px;line-height:1.55;color:var(--ink-2)}
+.trap b{color:var(--runtime);font-weight:600;display:block;font-size:10px;letter-spacing:.11em;
+  text-transform:uppercase;margin-bottom:4px;font-family:"IBM Plex Mono",monospace}
+
+/* ── transport ────────────────────────────────────────────────────────── */
+.transport{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:14px;border-top:1px solid var(--rule)}
+button.ctl{border:1px solid var(--rule);background:var(--surface);color:var(--ink);border-radius:9px;
+  height:36px;padding:0 13px;cursor:pointer;font:500 13px/1 "IBM Plex Sans",sans-serif}
+button.ctl:hover:not(:disabled){border-color:var(--rule-2)}
+button.ctl:disabled{opacity:.4;cursor:default}
+button.ctl.play{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);min-width:96px}
+.count{margin-left:auto;font:500 12px/1 "IBM Plex Mono",monospace;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.hint{font:400 11.5px/1.5 "IBM Plex Sans",sans-serif;color:var(--ink-3);text-align:center}
+kbd{border:1px solid var(--rule-2);border-bottom-width:2px;border-radius:4px;padding:1px 5px;font-size:10.5px;color:var(--ink-2)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="top">
+    <div>
+      <p class="eyebrow">A2UI &middot; CopilotKit &middot; LangGraph</p>
+      <h1>How a question becomes an interface</h1>
+      <p class="sub">Twelve hops from a typed sentence to mounted React components — each one naming the
+        file that does the work. Every code excerpt and every value below is taken from this
+        repository and from one real run.</p>
+    </div>
+    <button class="themer" id="themer" aria-label="Switch theme" title="Switch theme">◐</button>
+  </header>
+
+  <!-- the thesis: one signal, four places, three crossings -->
+  <section class="rail" aria-label="Pipeline progress">
+    <div class="bands" id="bands"></div>
+    <div class="crossings">
+      <span>you type</span><span>↳ HTTP</span><span>↳ AG-UI</span><span>↳ activity stream</span><span>pixels</span>
+    </div>
+  </section>
+
+  <div class="split">
+    <nav class="list" id="list" aria-label="Steps"></nav>
+
+    <main class="stage">
+      <div class="stage-head">
+        <div class="big-n" id="bigN">01</div>
+        <div style="min-width:0">
+          <span class="where-chip" id="chip" data-s="browser">browser</span>
+          <h2 id="title">—</h2>
+        </div>
+      </div>
+
+      <p class="what" id="what"></p>
+
+      <div class="file">
+        <span class="tag">file</span>
+        <span class="path" id="path"></span>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h3>the code</h3>
+          <pre id="code"></pre>
+        </div>
+        <div class="panel">
+          <h3 id="dataLabel">what happened</h3>
+          <pre id="data"></pre>
+        </div>
+      </div>
+
+      <div class="trap" id="trap" hidden><b>the trap</b><span id="trapText"></span></div>
+
+      <div class="transport">
+        <button class="ctl" id="prev">← Back</button>
+        <button class="ctl play" id="play">Play</button>
+        <button class="ctl" id="next">Next →</button>
+        <span class="count" id="count">01 / 12</span>
+      </div>
+      <p class="hint"><kbd>←</kbd> <kbd>→</kbd> step &nbsp;·&nbsp; <kbd>space</kbd> play &nbsp;·&nbsp; <kbd>1</kbd>–<kbd>9</kbd> jump</p>
+    </main>
+  </div>
+</div>
+
+<script>
+const STAGES = {browser:"browser", runtime:"next.js runtime", agent:"langgraph agent", render:"back in the browser"};
+
+/* Real question, real trace, real files. Nothing here is illustrative. */
+const Q = "show me noise cancelling headphones under $300";
+
+const STEPS = [
+{s:"browser", t:"You ask a question",
+ w:"The chat posts your message to the CopilotKit runtime. Nothing about the interface has been decided — this is an ordinary HTTP request carrying a sentence.",
+ f:"packages/a2ui-kit/src/provider.tsx",
+ c:`<b>&lt;A2UIChatProvider</b>
+  runtimeUrl=<i>"/api/copilotkit"</i>
+  agentId=<i>"product_agent"</i>
+  app={children}
+<b>/&gt;</b>`,
+ dl:"the message", d:`"${Q}"`},
+
+{s:"runtime", t:"The runtime attaches the component catalog",
+ w:"CopilotRuntime is configured with a2ui, which applies the A2UI middleware. It tells the agent which components this browser can draw, as AG-UI context.",
+ f:"apps/web/app/api/copilotkit/[[...rest]]/route.ts",
+ c:`<b>const</b> runtime = <b>new</b> CopilotRuntime({
+  agents: { product_agent: <b>new</b> LangGraphAgent({ … }) },
+  <b>a2ui: {},</b>   <i>// ← the whole switch</i>
+  runner: <b>new</b> InMemoryAgentRunner(),
+});`,
+ dl:"context sent", d:`A2UI Component Schema
+A2UI catalog capabilities
+A2UI generation guidelines
+A2UI design guidelines`,
+ trap:"An empty object is the entire configuration. It means: use the standard v0.9 basic catalog and let a model design the tree each turn — dynamic schema."},
+
+{s:"runtime", t:"AG-UI carries it to the graph",
+ w:"LangGraphAgent speaks AG-UI over HTTP to langgraph dev. The catalog, your frontend tools and the conversation all arrive as graph input.",
+ f:"@ag-ui/langgraph → langgraph dev :2024",
+ c:`POST /threads/{id}/runs/stream
+{
+  messages: [ … ],
+  <b>"ag-ui"</b>: { context: [ … ], tools: [ … ] }
+}`,
+ dl:"where it lands", d:`state["ag-ui"]["context"]
+state["tools"]`,
+ trap:"Because the Node adapter is used, the Python helper that would populate ag-ui.a2ui_schema never runs. The catalog arrives as an ordinary context entry — code that reads only that key finds nothing."},
+
+{s:"agent", t:"The supervisor picks one specialist",
+ w:"One routing decision per turn, made with structured output so the model cannot return something unroutable. It returns a Command carrying both the destination and the state update.",
+ f:"apps/agent/src/agent/nodes.py → supervisor()",
+ c:`model = make_model().with_structured_output(
+    Route, <b>method="json_schema"</b>
+)
+…
+<b>return</b> Command(goto=route.next_agent, update=update)`,
+ dl:"the decision", d:`intent  : search
+route   : catalog_agent
+refined : "noise cancelling headphones"`,
+ trap:"method=\"json_schema\" is load-bearing. The default implementation is function calling, which streams a malformed tool call to the browser and blanks the answer."},
+
+{s:"agent", t:"A worker queries the catalog",
+ w:"The chosen worker calls MCP tools over streamable HTTP. The MCP server owns the data and the comparison logic; the agent only decides what to ask for.",
+ f:"apps/agent/src/agent/nodes.py · apps/mcp/src/mcp_products/server.py",
+ c:`result = <b>await</b> tool.ainvoke(
+    call["args"], <b>config={"callbacks": []}</b>
+)`,
+ dl:"tools called", d:`search_products → 4 products`,
+ trap:"Those empty callbacks matter. Tracing the call makes the adapter synthesise a tool-call event with no id and no name, which corrupts the client's message list and silently drops the answer."},
+
+{s:"agent", t:"The worker writes data, not prose",
+ w:"It puts what it found into a surface dict — kind, title, and the raw products. It never writes a sentence for you. This is the hinge the whole design turns on.",
+ f:"apps/agent/src/agent/state.py → SurfaceSpec",
+ c:`surface: SurfaceSpec = {
+    <b>"kind"</b>:  "product_grid",
+    <b>"title"</b>: f"{len(products)} matching products",
+    <b>"data"</b>:  {"products": products},
+}`,
+ dl:"the surface", d:`kind  : product_grid
+title : "4 matching products"
+data  : 4 products`,
+ trap:"Because workers emit data, swapping markdown for generative UI changed exactly one function. Had each worker written its own answer, that swap would have been a rewrite of all of them."},
+
+{s:"agent", t:"The presenter writes the answer",
+ w:"One node decides how anything looks. It generates the prose on its own first, with no tools bound, so the text message streams and completes cleanly.",
+ f:"apps/agent/src/agent/nodes.py → _present_with_a2ui()",
+ c:`reply = <b>await</b> make_model().ainvoke([
+    SystemMessage(content=prompts.PRESENTER_A2UI),
+    HumanMessage(content=brief),
+], config=config)`,
+ dl:"prose produced", d:`"The Aether NC 700 stands out with
+ 28-hour battery and LDAC support…"`,
+ trap:"Prose first, then render. Ask for both in one turn and the text attaches itself to a tool call — the bubble arrives empty while the answer sits on the wire."},
+
+{s:"agent", t:"A second model designs the interface",
+ w:"generate_a2ui runs a separate LLM, shown the component catalog, your house style and the data. It invents a component tree for this turn — forced through a schema, validated against the catalog, retried on failure.",
+ f:"apps/agent/src/agent/a2ui.py · apps/agent/src/agent/design_rules.py",
+ c:`_tool = get_a2ui_tools({
+    "model": make_model(),
+    "guidelines": {<b>"composition_guide": HOUSE_STYLE</b>},
+})`,
+ dl:"tree designed", d:`12 components, 5 types
+Column · Text · List · Card · Row`,
+ trap:"It reads its data from ag-ui.context, never from the presenter's prompt. Miss that and it invents plausible products you do not sell — correct layout, fluent prose, fictional catalogue."},
+
+{s:"agent", t:"Three operations go on the wire",
+ w:"createSurface opens a canvas, updateComponents sends the tree, updateDataModel sends the values. Structure and data travel separately, which is what lets data stream into a layout sent only once.",
+ f:"A2UI v0.9 envelope",
+ c:`{ <b>"a2ui_operations"</b>: [
+  { "createSurface":    { surfaceId, catalogId } },
+  { "updateComponents": { components: [ … ] } },
+  { "updateDataModel":  { path: "/", value: { … } } }
+] }`,
+ dl:"the tree", d:`{ "id": "root", "component": "Column",
+  "children": ["title","product-list"] }
+{ "id": "product-list", "component": "List",
+  "children": { "componentId": "product-card",
+                "path": "/products" } }`},
+
+{s:"agent", t:"Values bind into the tree by path",
+ w:"Components reference data as a path rather than a literal. Inside a repeating List the paths are relative to each item; the List's own path is absolute.",
+ f:"updateDataModel → surface data model",
+ c:`{ "id": "product-name", "component": "Text",
+  "text": { <b>"path": "name"</b> },      <i>// relative</i>
+  "variant": "h3" }`,
+ dl:"the data", d:`products[0]
+  name  : "Pulse Buds Lite"
+  price : "$89"
+  rating: "4.2 out of 5"`,
+ trap:"Relative inside a template, absolute outside it. Getting this backwards is the single most common reason a generated surface renders blank."},
+
+{s:"render", t:"The middleware paints the surface",
+ w:"The A2UI middleware turns the operations into an activity message. The whole lifecycle — building, retrying, painted — rides one message id and replaces in place, so you never see two loaders.",
+ f:"@ag-ui/a2ui-middleware → ACTIVITY_SNAPSHOT",
+ c:`{ "type": "ACTIVITY_SNAPSHOT",
+  "activityType": <b>"a2ui-surface"</b>,
+  "messageId": "a2ui-surface-…",
+  "replace": true }`,
+ dl:"observed", d:`40 activity snapshots
+skeleton at 10s → painted at 15s`},
+
+{s:"render", t:"React mounts it, in your theme",
+ w:"The renderer starts at the component with id root, walks the tree, resolves each binding against the data model, and mounts real React components. Colour and radius come from variables scoped to the surface — mapped to your own tokens.",
+ f:"@copilotkit/a2ui-renderer · packages/a2ui-kit/src/styles/a2ui-theme.css",
+ c:`.a2ui-surface {
+  --background: <b>var(--surface)</b>;
+  --foreground: <b>var(--ink)</b>;
+  --primary:    <b>var(--brand)</b>;
+  --radius: 12px;
+}`,
+ dl:"on screen", d:`4 product cards, horizontal
+every colour from your tokens
+light and dark both correct`,
+ trap:"Exactly one component must have id \"root\". Without it the surface renders as an empty placeholder — no error anywhere, just nothing."}
+];
+
+const $ = id => document.getElementById(id);
+let i = 0, playing = false, timer = null;
+
+/* rail: group consecutive steps into their stage bands */
+const bands = [];
+STEPS.forEach((st, n) => {
+  const last = bands[bands.length - 1];
+  if (last && last.s === st.s) last.idx.push(n);
+  else bands.push({s: st.s, idx: [n]});
+});
+$("bands").innerHTML = bands.map(b => `
+  <div class="band" data-s="${b.s}">
+    <div class="band-label">${STAGES[b.s]}</div>
+    <div class="ticks">${b.idx.map(n =>
+      `<button class="tick" data-s="${b.s}" data-i="${n}" aria-label="Step ${n+1}"></button>`).join("")}</div>
+  </div>`).join("");
+
+$("list").innerHTML = STEPS.map((s, n) => `
+  <button class="item" data-i="${n}">
+    <span class="n">${String(n+1).padStart(2,"0")}</span>
+    <span class="dot" data-s="${s.s}"></span>
+    <span>${s.t}</span>
+  </button>`).join("");
+
+function render(){
+  const s = STEPS[i];
+  $("bigN").textContent = String(i+1).padStart(2,"0");
+  $("chip").textContent = STAGES[s.s];
+  $("chip").dataset.s = s.s;
+  $("title").textContent = s.t;
+  $("what").textContent = s.w;
+  $("path").textContent = s.f;
+  $("code").innerHTML = s.c;
+  $("dataLabel").textContent = s.dl;
+  $("data").textContent = s.d;
+  $("trap").hidden = !s.trap;
+  if (s.trap) $("trapText").textContent = s.trap;
+  $("count").textContent = `${String(i+1).padStart(2,"0")} / ${STEPS.length}`;
+  $("prev").disabled = i === 0;
+  $("next").disabled = i === STEPS.length - 1;
+
+  document.querySelectorAll(".tick").forEach(t => {
+    const n = +t.dataset.i;
+    t.dataset.done = n <= i ? "1" : "0";
+    t.dataset.now = n === i ? "1" : "0";
+  });
+  document.querySelectorAll(".item").forEach(el => {
+    const on = +el.dataset.i === i;
+    el.setAttribute("aria-current", on ? "true" : "false");
+    if (on) el.scrollIntoView({block:"nearest"});
+  });
+}
+
+function go(n){ i = Math.max(0, Math.min(STEPS.length - 1, n)); render(); }
+function stop(){ playing = false; clearInterval(timer); $("play").textContent = "Play"; }
+function start(){
+  if (i === STEPS.length - 1) i = 0;
+  playing = true; $("play").textContent = "Pause"; render();
+  timer = setInterval(() => {
+    if (i >= STEPS.length - 1) return stop();
+    go(i + 1);
+  }, 5200);
+}
+
+$("prev").onclick = () => { stop(); go(i - 1); };
+$("next").onclick = () => { stop(); go(i + 1); };
+$("play").onclick = () => playing ? stop() : start();
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-i]");
+  if (el) { stop(); go(+el.dataset.i); }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight") { stop(); go(i + 1); }
+  else if (e.key === "ArrowLeft") { stop(); go(i - 1); }
+  else if (e.key === " ") { e.preventDefault(); playing ? stop() : start(); }
+  else if (/^[1-9]$/.test(e.key)) { stop(); go(+e.key - 1); }
+});
+
+const themer = $("themer");
+themer.onclick = () => {
+  const root = document.documentElement;
+  const now = root.getAttribute("data-theme");
+  const next = now === "dark" ? "light" : now === "light" ? null : "dark";
+  if (next) root.setAttribute("data-theme", next); else root.removeAttribute("data-theme");
+  themer.textContent = next === "dark" ? "☾" : next === "light" ? "☀" : "◐";
+};
+
+render();
+</script>
+</body>
+</html>
