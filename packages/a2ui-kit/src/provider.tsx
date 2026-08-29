@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import {
   CopilotKitProvider,
   CopilotPopup,
@@ -142,6 +144,15 @@ export interface A2UIChatProviderProps extends A2UIKitConfig {
   showJourney?: boolean;
 }
 
+/** A fresh conversation id. randomUUID needs a secure context; the fallback
+ *  keeps this working on plain http during local development. */
+function newThreadId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `thread-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function A2UIChatProvider({
   runtimeUrl,
   inputPlaceholder = "Ask me anything…",
@@ -150,6 +161,16 @@ export function A2UIChatProvider({
   showJourney = process.env.NEXT_PUBLIC_SHOW_TEACHING !== "false",
   ...config
 }: A2UIChatProviderProps) {
+  // We own the thread id rather than letting CopilotKit mint one internally.
+  //
+  // That is what makes "New chat" a `useState` call instead of a reach into
+  // someone else's context: `threadId` is a documented prop on the popup, and
+  // changing it starts a fresh conversation. The previous attempt used
+  // `startNewThread()` from `useCopilotChatConfiguration()`, whose context is
+  // created INSIDE the popup, so a sibling component read `null` and rendered
+  // nothing at all.
+  const [threadId, setThreadId] = useState(newThreadId);
+
   return (
     <CopilotKitProvider runtimeUrl={runtimeUrl}>
       <A2UIKitConfigProvider config={config}>
@@ -159,10 +180,11 @@ export function A2UIChatProvider({
         {app}
         <CopilotPopup
           agentId={config.agentId}
+          threadId={threadId}
           labels={{ chatInputPlaceholder: inputPlaceholder }}
         />
         <ChatResizer />
-        <ChatSessionControls />
+        <ChatSessionControls onNewChat={() => setThreadId(newThreadId())} />
         <ChatPipelineSlot />
         {showJourney && <JourneyPanel />}
       </A2UIKitConfigProvider>

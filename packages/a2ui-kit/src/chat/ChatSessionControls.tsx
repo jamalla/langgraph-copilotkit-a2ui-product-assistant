@@ -2,60 +2,40 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useCopilotChatConfiguration } from "@copilotkit/react-core/v2";
 
 /**
- * New chat, and the thread history drawer.
+ * New chat, portalled into the popup header.
  *
- * Both come from CopilotKit's own chat configuration rather than from anything
- * we invent:
+ * ## Why this does not use CopilotKit's own thread API
  *
- *   startNewThread()  mints a fresh client-side thread id and shows the welcome
- *                     screen. This IS the reset: v2 exposes no way to clear the
- *                     messages of a thread in place, so a separate "reset"
- *                     button would either do exactly this or do nothing.
- *   setDrawerOpen()   opens the thread list, which is where the conversation
- *                     you just left is still sitting.
+ * v2 exposes `startNewThread()` on `useCopilotChatConfiguration()`, which looks
+ * like the obvious answer and is not. That hook reads a context created INSIDE
+ * `<CopilotPopup>`, and these controls render as a sibling of the popup, not a
+ * child. So the hook returned `null`, the component returned `null`, and the
+ * buttons never appeared. No error, nothing in the console: a component that
+ * renders nothing looks exactly like a component that was never mounted.
  *
- * Both are documented as a no-op when `threadId` is prop-controlled. We do not
- * pass `threadId` to `<CopilotPopup>`, so they work; if someone later fixes the
- * thread from outside, these buttons go quiet and the console explains why.
+ * Rather than reach further into someone else's internals, the thread is ours.
+ * `A2UIChatProvider` holds the id in state and passes it to `<CopilotPopup>` as
+ * the documented `threadId` prop, so starting a new chat is one `useState` call
+ * we control and can reason about.
  *
- * Portalled into the popup header for the same reason ChatResizer is: rendering
- * in place would put the controls behind the modal, or outside it entirely.
+ * ## Why there is no separate "reset" button
+ *
+ * A new thread IS the reset. v2 offers no way to clear the messages of a thread
+ * in place, so a second button would either do exactly this or do nothing, and
+ * two controls that perform one action is worse than one that is honest about
+ * what it does.
  */
 
 const HOST_ID = "a2ui-session-slot";
 
-function IconButton({
-  onClick,
-  title,
-  children,
-}: {
-  onClick: () => void;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      aria-label={title}
-      className="grid size-6 place-items-center rounded-control border border-line bg-surface text-ink-muted transition hover:border-line-strong hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-    >
-      {children}
-    </button>
-  );
-}
-
-export function ChatSessionControls() {
-  const config = useCopilotChatConfiguration();
+export function ChatSessionControls({ onNewChat }: { onNewChat: () => void }) {
   const [host, setHost] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
-    // The popup mounts after us and can remount on resize, so watch rather than
-    // look once. Same approach as ChatResizer.
+    // The popup mounts after us and remounts on resize, so watch for it rather
+    // than looking once. Same reasoning as ChatResizer.
     const attach = () => {
       const popup = document.querySelector<HTMLElement>(".copilotKitPopup");
       if (!popup) return false;
@@ -78,46 +58,31 @@ export function ChatSessionControls() {
     return () => observer.disconnect();
   }, []);
 
-  if (!host || !config) return null;
+  if (!host) return null;
 
   return createPortal(
-    <div className="absolute right-11 top-2 z-[1400] flex items-center gap-1">
-      <IconButton
+    // Left of the close button, which sits at the far right of the header.
+    <div className="absolute right-10 top-2 z-[1400] flex items-center gap-1">
+      <button
+        type="button"
+        onClick={onNewChat}
         title="New chat"
-        onClick={() => config.startNewThread()}
+        aria-label="Start a new chat"
+        className="flex items-center gap-1 rounded-control border border-line bg-surface px-2 py-1 text-[11px] font-medium text-ink-muted transition hover:border-line-strong hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       >
-        {/* A page with a plus: a new conversation, not a saved one. */}
         <svg
           viewBox="0 0 24 24"
-          className="size-3.5"
+          className="size-3"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.8"
+          strokeWidth="2.2"
           strokeLinecap="round"
-          strokeLinejoin="round"
           aria-hidden="true"
         >
           <path d="M12 5v14M5 12h14" />
         </svg>
-      </IconButton>
-
-      <IconButton
-        title="Previous chats"
-        onClick={() => config.setDrawerOpen(!config.drawerOpen)}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          className="size-3.5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M4 6h16M4 12h16M4 18h10" />
-        </svg>
-      </IconButton>
+        New chat
+      </button>
     </div>,
     host,
   );

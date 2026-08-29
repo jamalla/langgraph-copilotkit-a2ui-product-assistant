@@ -49,6 +49,7 @@ It ships TypeScript source rather than a build output - `transpilePackages: ["@a
 - [Prompts worth trying](#prompts-worth-trying)
 - [Anatomy: three services and one library](#anatomy-three-services-and-one-library)
 - [Learning it: the explainer](#learning-it-the-explainer)
+- [Styling the generated UI](#styling-the-generated-ui)
 - [Learning it: the journey panel](#learning-it-the-journey-panel)
 - [How a single turn actually flows](#how-a-single-turn-actually-flows)
 - [Human in the loop: confirming writes](#human-in-the-loop-confirming-writes)
@@ -340,6 +341,21 @@ audio files and no network calls.
 
 No build, no server, no dependencies - one file you can send to someone.
 
+## Styling the generated UI
+
+[docs/styling-generated-ui.md](docs/styling-generated-ui.md) is the guide for
+whoever maintains the look of agent-generated surfaces. It covers the four
+levers that control it, ordered by the only thing that matters: whether the
+model can ignore them.
+
+The short version. CSS and the data shape are deterministic and do the real
+work. The prompt is a tendency, not a guarantee. Constraining what the model
+CAN say beats telling it what to say, which is why removing `specs` and `price`
+from its payload fixed more than any wording ever did.
+
+The catalog header links it too, alongside the explainer and the source.
+
+---
 ## Learning it: the journey panel
 
 Click **"How A2UI works"** on the left edge. It walks the twelve hops from your question to
