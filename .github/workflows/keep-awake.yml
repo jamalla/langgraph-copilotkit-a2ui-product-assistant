@@ -14,6 +14,11 @@ name: Keep Render awake
 #     happening. Five minutes gives the ping three chances inside every idle
 #     window instead of one, and costs nothing extra on the Render side, because
 #     a service kept awake uses the same instance-hours either way.
+#   * GitHub schedules are best-effort, not guaranteed. Runs are delayed under
+#     load and dropped outright when the queue is deep, and a brand new
+#     repository can wait a long time for its first one. If the app must never
+#     sleep, an external uptime pinger (UptimeRobot, cron-job.org, Better
+#     Stack) fires far more reliably than this ever will, and is free.
 #   * If cold starts are the thing you actually want gone, change the cron below
 #     back to */5.
 #   * GitHub disables scheduled workflows on a repository with no commits for
@@ -26,7 +31,14 @@ name: Keep Render awake
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # see the note above about the 15 minute idle timeout
+    # Every 15 minutes, but deliberately OFF the quarter marks.
+    #
+    # "*/15" fires at :00, :15, :30 and :45, which is exactly when every other
+    # scheduled workflow on GitHub fires. Their own docs warn that the schedule
+    # event is delayed during high load and name the start of the hour as the
+    # worst of it, and a delayed run on a 15 minute idle timeout is a missed
+    # run. Offsetting costs nothing and avoids the stampede.
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch: # so you can ping it by hand from the Actions tab
 
 concurrency:
