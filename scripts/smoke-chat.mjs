@@ -4,7 +4,7 @@
  *
  * `smoke-browser.mjs` only loads the page. That caught the `Agent 'default'`
  * crash, but it cannot catch a turn that runs perfectly on the server and then
- * renders as an empty bubble — which is exactly what happened next.
+ * renders as an empty bubble - which is exactly what happened next.
  *
  * This one types a question into the real chat, waits for the assistant, and
  * fails if the reply is blank. It is the last untested layer in the stack.
@@ -35,7 +35,7 @@ const BROWSERS = [
 
 const browser = BROWSERS.find((p) => fs.existsSync(p));
 if (!browser) {
-  console.error("No Edge or Chrome found — skipping chat smoke test.");
+  console.error("No Edge or Chrome found - skipping chat smoke test.");
   process.exit(0);
 }
 
@@ -143,7 +143,7 @@ try {
   await sleep(2000);
 
   const sent = await evaluate(`(() => {
-    // The product filter bar also has inputs — pick the chat's textarea only.
+    // The product filter bar also has inputs - pick the chat's textarea only.
     const el = document.querySelector('textarea');
     if (!el) return 'no-input';
 
@@ -159,14 +159,14 @@ try {
   })()`);
 
   if (sent === "no-input") {
-    console.log("\n  ✗ no chat textarea found — run scripts/dom-probe.mjs\n");
+    console.log("\n  ✗ no chat textarea found - run scripts/dom-probe.mjs\n");
     finish(1);
   }
 
   // Read the assistant bubble DIRECTLY.
   //
   // An earlier version diffed document.body.innerText around the question and
-  // reported "the assistant rendered NOTHING" for turns that rendered fine — it
+  // reported "the assistant rendered NOTHING" for turns that rendered fine - it
   // kept matching only the "AI can make mistakes" footer. Half a debugging
   // session went into a bug that was in the TEST, not the app. Assert against
   // the element that is supposed to hold the answer.

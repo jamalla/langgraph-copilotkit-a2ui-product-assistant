@@ -3,7 +3,7 @@ const REPO_URL = "https://github.com/jamalla/langgraph-copilotkit-a2ui-product-a
 /**
  * Header links: the interactive explainer, and the source.
  *
- * Server component — these are two anchors with no state, so shipping a client
+ * Server component - these are two anchors with no state, so shipping a client
  * bundle for them would be waste. The icons are inline SVG rather than an icon
  * package: two glyphs do not justify a dependency, and inline paths cannot fail
  * to load.
@@ -24,7 +24,7 @@ export function ProjectLinks() {
         href="/explainer"
         target="_blank"
         rel="noopener noreferrer"
-        title="How this UI is generated — a twelve-step narrated walkthrough"
+        title="How this UI is generated - a twelve-step narrated walkthrough"
         aria-label="Open the interactive explainer in a new tab"
         className={BUTTON}
       >

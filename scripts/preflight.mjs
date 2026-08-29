@@ -125,7 +125,7 @@ if (fs.existsSync(envFile)) {
   const env = fs.readFileSync(envFile, "utf8");
   const on = /^LANGSMITH_TRACING=true$/m.test(env);
   const key = /^LANGSMITH_API_KEY=lsv2_/m.test(env);
-  if (on && key) ok("LangSmith tracing", "on — the journey panel will link to each run");
+  if (on && key) ok("LangSmith tracing", "on - the journey panel will link to each run");
   else if (on && !key) warn("LANGSMITH_TRACING is true but no API key is set");
   else notes.push("langsmith-off");
 }
@@ -140,11 +140,11 @@ const PORTS = [
 
 for (const [port, who] of PORTS) {
   if (!(await portInUse(port))) {
-    ok(`port ${port}`, `${who} — free`);
+    ok(`port ${port}`, `${who} - free`);
   } else {
     warn(
       `port ${port} is already in use (${who})`,
-      "a previous run is probably still alive — that is usually what you want",
+      "a previous run is probably still alive - that is usually what you want",
     );
   }
 }
@@ -173,7 +173,7 @@ if (notes.filter((n) => n !== "langsmith-off").length > 0) {
   console.log(
     dim(
       "  Ports already in use are fine if you meant to leave those services running.\n" +
-        "  If a service behaves like it is running stale code, stop it and start again —\n" +
+        "  If a service behaves like it is running stale code, stop it and start again -\n" +
         "  `langgraph dev` in particular does not reliably reload a changed state schema.\n",
     ),
   );

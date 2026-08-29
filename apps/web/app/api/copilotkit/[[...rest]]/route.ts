@@ -23,7 +23,7 @@ import { AGENT_ID } from "@/lib/agent";
 const runtime = new CopilotRuntime({
   agents: {
     // The key is the agent name the browser asks for, so it must equal AGENT_ID
-    // — every hook on the client resolves against this map by name. `graphId`
+    // - every hook on the client resolves against this map by name. `graphId`
     // is a separate thing: the key in apps/agent/langgraph.json.
     [AGENT_ID]: new LangGraphAgent({
       deploymentUrl: process.env.LANGGRAPH_DEPLOYMENT_URL ?? "http://localhost:2024",
@@ -37,7 +37,7 @@ const runtime = new CopilotRuntime({
    *  1. It applies `@ag-ui/a2ui-middleware` to every agent above.
    *  2. The middleware sends the component catalog to the agent as an AG-UI
    *     context entry, which `ag_ui_langgraph` routes into
-   *     `state["ag-ui"]["a2ui_schema"]` — the value our presenter checks before
+   *     `state["ag-ui"]["a2ui_schema"]` - the value our presenter checks before
    *     deciding whether a browser is even attached.
    *  3. It tells the browser that A2UI is configured, which is what activates
    *     the renderer client-side. `<CopilotKitProvider>` needs no `a2ui` prop
@@ -55,7 +55,7 @@ const runtime = new CopilotRuntime({
 });
 
 /**
- * `createCopilotEndpoint` returns a HONO APP, not a Next.js route handler — and
+ * `createCopilotEndpoint` returns a HONO APP, not a Next.js route handler - and
  * in its default "multi-route" mode it registers several paths beneath
  * `basePath`, not just one. Two consequences, both of which bite immediately:
  *

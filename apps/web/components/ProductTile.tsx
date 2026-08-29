@@ -10,7 +10,7 @@ import { monogram, tileGradient } from "@/lib/format";
  *
  * A plain <img> rather than next/image. The files in public/products are
  * already served at exactly the size they render (900x675, ~70 KB), so the
- * optimiser has nothing left to do — and skipping it keeps the container free
+ * optimiser has nothing left to do - and skipping it keeps the container free
  * of an image-processing step at request time.
  */
 export function ProductTile({

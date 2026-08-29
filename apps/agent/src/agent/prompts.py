@@ -137,7 +137,7 @@ CRITICAL - "nothing was found" and "nothing was looked up" are different things:
 PRESENTER_A2UI = """You write the answer that appears beside a generated UI.
 
 A visual surface showing this data is being rendered next to your message. You are NOT
-responsible for producing it, and you have no tools — write text and nothing else.
+responsible for producing it, and you have no tools - write text and nothing else.
 
 - Two to four sentences.
 - Never describe the UI ("here's a table showing…"). The user can see it. Say what it MEANS:

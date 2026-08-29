@@ -56,7 +56,7 @@ def quiet(config: RunnableConfig | None, *, tool_calls: bool = True) -> Runnable
 
     Workers keep `tool_calls=True`: seeing "searching the catalog…" is real
     progress. The SUPERVISOR must pass `tool_calls=False`, and that is subtler
-    than it looks — `with_structured_output(Route)` is implemented AS A TOOL
+    than it looks - `with_structured_output(Route)` is implemented AS A TOOL
     CALL. Leave it visible and the client receives a tool call that never gets a
     result, because nothing executes it; the chat then renders an assistant
     bubble containing an orphan tool call and NO TEXT. The answer arrives
@@ -270,7 +270,7 @@ async def _run_tool_loop(
     by_name = {t.name: t for t in tools}
 
     # One turn, one answer: only the presenter's PROSE reaches the user.
-    # Tool calls stay visible — "searching the catalog…" is real progress, and
+    # Tool calls stay visible - "searching the catalog…" is real progress, and
     # with the fix below they now carry proper ids.
     config = quiet(config)
 
@@ -319,7 +319,7 @@ async def _run_tool_loop(
                 #
                 # This node runs its own tool loop instead of using a ToolNode,
                 # so LangChain fires on_tool_start/on_tool_end callbacks that
-                # `ag_ui_langgraph` turns into AG-UI tool-call events — but with
+                # `ag_ui_langgraph` turns into AG-UI tool-call events - but with
                 # NO toolCallId and NO toolCallName, because the ids live in the
                 # ToolNode machinery we bypassed. That id-less, unpaired event
                 # corrupts the client's message reconstruction: CopilotKit ends
@@ -516,7 +516,11 @@ async def catalog_agent(state: AgentState, config: RunnableConfig) -> dict[str, 
         "last_results": products,
         "surface": surface,
         "tools_used": _tool_summary(collected),
-        "selected_product_ids": [p["id"] for p in products[:4]],
+        # Highlight what the search actually returned, not an arbitrary first
+        # four. Now that search_products can filter by availability, "highlight
+        # the out of stock products" comes back as exactly those products, and
+        # truncating to four would drop some of the answer.
+        "selected_product_ids": [p["id"] for p in products[:12]],
     }
 
 
@@ -633,7 +637,7 @@ def _render_markdown(surface: SurfaceSpec | None) -> str:
         if not products:
             return ""
         lines = [
-            f"- **{p['name']}** ({p['brand']}) — ${p['price']:,} · {p['rating']}★"
+            f"- **{p['name']}** ({p['brand']}) - ${p['price']:,} · {p['rating']}★"
             + ("" if p["inStock"] else " · _out of stock_")
             for p in products[:6]
         ]
@@ -650,7 +654,7 @@ def _render_markdown(surface: SurfaceSpec | None) -> str:
             "| "
             + row["label"]
             + " | "
-            + " | ".join(str(row["values"].get(pid, "—")) for pid in names)
+            + " | ".join(str(row["values"].get(pid, "-")) for pid in names)
             + " |"
             for row in matrix["rows"]
             if row["differs"]
@@ -660,7 +664,7 @@ def _render_markdown(surface: SurfaceSpec | None) -> str:
     if kind == "recommendation":
         products = data.get("products", [])
         return "\n".join(
-            f"- **{p['name']}** — ${p['price']:,} · {p['rating']}★" for p in products[:3]
+            f"- **{p['name']}** - ${p['price']:,} · {p['rating']}★" for p in products[:3]
         )
 
     if kind == "cart":
@@ -668,7 +672,7 @@ def _render_markdown(surface: SurfaceSpec | None) -> str:
         items = cart.get("items", [])
         if not items:
             return "_Your cart is empty._"
-        lines = [f"- {i['name']} × {i['quantity']} — ${i['line_total']:,}" for i in items]
+        lines = [f"- {i['name']} × {i['quantity']} - ${i['line_total']:,}" for i in items]
         lines.append(f"\n**Subtotal: ${cart.get('subtotal', 0):,.0f}**")
         return "\n".join(lines)
 
@@ -751,13 +755,13 @@ async def _langsmith_run() -> dict[str, Any]:
     """The current LangSmith run, if tracing is on.
 
     Everything the journey panel shows is a summary. LangSmith has the full
-    tree — every prompt, every token count, the A2UI subagent's retries — so
+    tree - every prompt, every token count, the A2UI subagent's retries - so
     the panel links straight to THIS run rather than to a project page you then
     have to search.
 
     Each lookup is guarded SEPARATELY on purpose. A single `try` around the
     whole thing reported `enabled: false` on a correctly configured setup,
-    because `get_url()` can raise while tracing is perfectly healthy — and the
+    because `get_url()` can raise while tracing is perfectly healthy - and the
     broad except turned a missing URL into "tracing is off", which sent me
     looking at the env vars instead of at this function.
     """
@@ -802,7 +806,7 @@ async def _langsmith_run() -> dict[str, Any]:
     if url:
         out["url"] = f"{url}/r/{out['run_id']}"
     else:
-        # Still a real traced run — say so, and give the id to search for.
+        # Still a real traced run - say so, and give the id to search for.
         out["note"] = (
             "run traced; open your LangSmith project and search this run id"
             + (f" ({_project_url_error})" if _project_url_error else "")
@@ -820,10 +824,10 @@ async def _langsmith_project_url() -> str | None:
 
     `RunTree.get_url()` needs an org and project id it cannot always resolve on
     a local `langgraph dev` run. `Client.read_project()` returns both, already
-    assembled as `url` — one API call, cached.
+    assembled as `url` - one API call, cached.
 
-    Only SUCCESS is cached. Caching the failure too meant one early call — made
-    before the environment was ready — pinned `None` for the life of the
+    Only SUCCESS is cached. Caching the failure too meant one early call - made
+    before the environment was ready - pinned `None` for the life of the
     process, and every later turn reported no URL while a plain script resolved
     it fine.
     """
@@ -841,7 +845,7 @@ async def _langsmith_project_url() -> str | None:
 
     try:
         # `read_project` is a blocking HTTP call, and `langgraph dev` refuses
-        # synchronous socket work on its event loop — it detects the block and
+        # synchronous socket work on its event loop - it detects the block and
         # fails the call rather than letting one request stall every other run.
         url = await asyncio.to_thread(lookup)
         if url:
@@ -858,7 +862,7 @@ def _read_a2ui_envelope(envelope: Any) -> dict[str, Any]:
 
     The envelope is `{"a2ui_operations": [createSurface, updateComponents,
     updateDataModel]}`. Splitting structure from data is the whole point of the
-    format — the component tree is authored once and the data streams into it —
+    format - the component tree is authored once and the data streams into it -
     so the panel shows them separately rather than as one JSON blob.
     """
     out: dict[str, Any] = {}
@@ -895,7 +899,7 @@ async def _present_with_a2ui(
     call it. Two problems with that:
 
       * It spends an extra round trip re-deciding something the graph already
-        knows — we only get here when `surface.kind != "none"`.
+        knows - we only get here when `surface.kind != "none"`.
       * The tool call had to come first, so the prose was generated in the same
         turn as the tool call. `ag_ui_langgraph` then synthesised an id-less
         tool call from `on_tool_end`, the client reconstructed the assistant
@@ -904,7 +908,7 @@ async def _present_with_a2ui(
 
     So: generate the prose on its own (it streams and completes as a clean text
     message), then invoke the renderer programmatically. Deterministic, one
-    fewer LLM call, and the non-determinism stays confined to layout — which is
+    fewer LLM call, and the non-determinism stays confined to layout - which is
     exactly where dynamic A2UI is supposed to keep it.
     """
     # 1. The answer. No tools bound, so nothing can pollute this message.
@@ -919,7 +923,7 @@ async def _present_with_a2ui(
 
     # 2. The surface. Keeps the traced config: the A2UI middleware paints from
     #    the live tool-call stream, and detaching callbacks here silences it
-    #    entirely (verified — surface count drops to zero).
+    #    entirely (verified - surface count drops to zero).
     tool = render_tool()
     args: dict[str, Any] = {"intent": "create"}
     if needs_runtime(tool):
@@ -934,11 +938,11 @@ async def _present_with_a2ui(
 
     trace: dict[str, Any] = {
         "question": question,
-        # How the turn was routed — step 4 of the journey panel.
+        # How the turn was routed - step 4 of the journey panel.
         "intent": state.get("intent"),
         "route_reason": state.get("route_reason"),
         "refined_query": state.get("refined_query"),
-        # What the worker actually did — step 5.
+        # What the worker actually did - step 5.
         "tools_used": state.get("tools_used") or [],
         "surface_title": (state.get("surface") or {}).get("title"),
         "product_count": len(((state.get("surface") or {}).get("data") or {}).get("products") or []),

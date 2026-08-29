@@ -349,7 +349,7 @@ def test_mcp_tools_are_invoked_with_callbacks_detached():
 
     This graph runs its own tool loop instead of a ToolNode, so LangChain fires
     on_tool_start/on_tool_end for each MCP call and `ag_ui_langgraph` turns them
-    into AG-UI tool-call events with NO toolCallId and NO toolCallName — the ids
+    into AG-UI tool-call events with NO toolCallId and NO toolCallName - the ids
     live in the ToolNode machinery we bypassed.
 
     That id-less, unpaired event corrupts the client's message reconstruction:
@@ -358,7 +358,7 @@ def test_mcp_tools_are_invoked_with_callbacks_detached():
     answers from their snapshot too. Server-side everything looked perfect.
 
     Passing an explicit empty `callbacks` list is what keeps the MCP call off
-    the callback tree. Note that omitting `config=` entirely is NOT enough —
+    the callback tree. Note that omitting `config=` entirely is NOT enough -
     LangChain picks the callback manager up from the ambient run context.
     """
     import inspect
@@ -379,7 +379,7 @@ def test_worker_tool_calls_still_stream():
     """Suppressing them is not the fix, and actively makes things worse.
 
     With `emit-tool-calls: False` the proper tool call disappears but the
-    synthesised on_tool_end event does NOT — leaving a lone id-less event and no
+    synthesised on_tool_end event does NOT - leaving a lone id-less event and no
     assistant bubble at all. Workers keep tool-call streaming so the UI can show
     real progress; only the supervisor's is silenced.
     """
@@ -399,12 +399,12 @@ def test_a2ui_is_detected_from_context_entries():
     """`ag-ui.a2ui_schema` is never set in this architecture.
 
     `ag_ui_langgraph`'s `split_a2ui_schema_context` lifts the component schema
-    into that key — but it only runs when PYTHON serves the AG-UI endpoint. We
+    into that key - but it only runs when PYTHON serves the AG-UI endpoint. We
     use the Node `LangGraphAgent` against `langgraph dev`, so the schema arrives
     as an ordinary context entry instead and the gate must look there.
 
     Symptom when it didn't: `a2uiEnabled: true`, four A2UI context entries on
-    the wire, a `product_grid` surface ready to draw — and every answer silently
+    the wire, a `product_grid` surface ready to draw - and every answer silently
     rendered as markdown.
     """
     from agent.a2ui import a2ui_is_available, a2ui_schema_from_state
@@ -415,7 +415,7 @@ def test_a2ui_is_detected_from_context_entries():
                 {"description": "A2UI catalog capabilities: available catalog IDs.", "value": "{}"},
                 {
                     "description": (
-                        "A2UI Component Schema — available components for generating UI "
+                        "A2UI Component Schema - available components for generating UI "
                         "surfaces. Use these component names and properties when creating "
                         "A2UI operations."
                     ),
@@ -440,7 +440,7 @@ def test_a2ui_render_keeps_its_traced_config():
     """The MCP tools detach callbacks; this one must NOT.
 
     The A2UI middleware paints from the live tool-call stream, so detaching
-    callbacks here silences the surface completely — verified, surface count
+    callbacks here silences the surface completely - verified, surface count
     drops to zero. The two tool invocations in this file need opposite
     treatment, which is exactly the kind of thing a test should hold still.
     """
@@ -487,17 +487,17 @@ def test_trace_carries_every_step_the_journey_panel_shows():
 
     source = inspect.getsource(nodes._present_with_a2ui)
     for field in (
-        '"question"',          # step 1  — what was asked
-        '"intent"',            # step 4  — how it routed
+        '"question"',          # step 1  - what was asked
+        '"intent"',            # step 4  - how it routed
         '"route_reason"',
         '"refined_query"',
-        '"tools_used"',        # step 5  — which MCP tools ran
-        '"surface_kind"',      # step 6  — the data the worker wrote
+        '"tools_used"',        # step 5  - which MCP tools ran
+        '"surface_kind"',      # step 6  - the data the worker wrote
         '"surface_title"',
         '"product_count"',
-        '"components"',        # step 8  — the tree the subagent invented
-        '"data_model"',        # step 10 — values bound by path
-        '"operations"',        # step 9  — the three A2UI ops
+        '"components"',        # step 8  - the tree the subagent invented
+        '"data_model"',        # step 10 - values bound by path
+        '"operations"',        # step 9  - the three A2UI ops
     ):
         assert field in source, f"a2ui_trace is missing {field}"
 
@@ -529,7 +529,7 @@ def test_house_style_is_appended_not_substituted():
     """The built-in guidelines carry protocol constraints, not just taste.
 
     Replacing them wholesale drops "exactly one component must have id root"
-    and the relative-vs-absolute path rules for List templates — and a surface
+    and the relative-vs-absolute path rules for List templates - and a surface
     that breaks either renders blank. So the house style goes in as
     `composition_guide`, which is APPENDED.
     """

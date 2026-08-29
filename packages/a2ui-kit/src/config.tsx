@@ -7,7 +7,7 @@ import { createContext, useContext } from "react";
  *
  * Everything else here is about HOW an agent's UI reaches a browser. These are
  * the only product-specific values, so they are configuration rather than
- * constants — which is exactly the boundary that makes the package reusable.
+ * constants - which is exactly the boundary that makes the package reusable.
  */
 export interface A2UIKitConfig {
   /**

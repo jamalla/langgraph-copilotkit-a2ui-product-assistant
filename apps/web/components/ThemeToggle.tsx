@@ -16,7 +16,7 @@ export function ThemeToggle() {
       const saved = localStorage.getItem("theme") as Mode | null;
       if (saved) setMode(saved);
     } catch {
-      /* private mode / blocked storage — the system default is fine */
+      /* private mode / blocked storage - the system default is fine */
     }
   }, []);
 
@@ -38,7 +38,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => setMode(next[mode])}
-      title={`Theme: ${mode} — click for ${next[mode]}`}
+      title={`Theme: ${mode} - click for ${next[mode]}`}
       aria-label={`Theme: ${mode}`}
       className="grid size-8 place-items-center rounded-control border border-line bg-surface text-sm text-ink-muted transition hover:border-line-strong hover:text-ink"
     >

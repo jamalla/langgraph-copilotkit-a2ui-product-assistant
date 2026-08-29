@@ -106,7 +106,7 @@ class AgentState(CopilotKitState, AgUiChannels):
 
     Purely explanatory: the agent never reads it. It exists so the browser can
     show the four steps between "products found" and "UI on screen", which are
-    otherwise invisible — the interesting part of generative UI is exactly the
+    otherwise invisible - the interesting part of generative UI is exactly the
     part that normally leaves no trace.
     """
 

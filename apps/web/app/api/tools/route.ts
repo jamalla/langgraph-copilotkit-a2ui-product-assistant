@@ -7,9 +7,9 @@ import { NextResponse } from "next/server";
  * alongside the MCP protocol itself) and appends the tools that live in the
  * browser. Those two sets are genuinely different things:
  *
- *   backend  — what the SERVER knows or can do: search the catalog, compare,
+ *   backend  - what the SERVER knows or can do: search the catalog, compare,
  *              change the cart.
- *   browser  — what only the BROWSER can do: scroll, focus, measure the
+ *   browser  - what only the BROWSER can do: scroll, focus, measure the
  *              viewport. No backend can scroll your page.
  *
  * Listing them together, labelled, is the clearest way to show that split.
@@ -47,7 +47,7 @@ export async function GET() {
       ],
     });
   } catch (error) {
-    // The MCP server may simply not be running — say so rather than 500.
+    // The MCP server may simply not be running - say so rather than 500.
     return NextResponse.json({
       tools: FRONTEND_TOOLS,
       warning: `Could not reach the MCP server at ${TOOLS_URL}. Start it with: pnpm dev:mcp`,

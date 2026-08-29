@@ -26,7 +26,7 @@ export function formatSpec(
 ): string {
   if (typeof value === "boolean") return value ? "Yes" : "No";
 
-  if (key === "battery_hours" && value === 0) return "Wired — no battery";
+  if (key === "battery_hours" && value === 0) return "Wired - no battery";
 
   const unit = specUnit(category, key);
   if (typeof value === "number") {

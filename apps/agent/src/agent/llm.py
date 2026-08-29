@@ -34,7 +34,7 @@ def make_model(*, temperature: float = 0.0, **kwargs) -> ChatOpenAI:
         base_url=os.getenv("OPENAI_BASE_URL") or None,
         # The SDK default is 2. Transient OpenAIConnectionErrors surface as
         # "An internal error occurred" in the chat with no hint of the cause,
-        # and during debugging they are indistinguishable from a logic bug —
+        # and during debugging they are indistinguishable from a logic bug -
         # a run just fails and you go looking in the wrong place.
         max_retries=int(os.getenv("AGENT_MAX_RETRIES", "4")),
         timeout=float(os.getenv("AGENT_TIMEOUT_SECONDS", "60")),

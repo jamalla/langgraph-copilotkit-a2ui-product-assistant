@@ -71,6 +71,17 @@ def search_products(
     in_stock_only: Annotated[
         bool, Field(description="Drop products that cannot currently be bought.")
     ] = False,
+    stock: Annotated[
+        Literal["any", "in_stock", "out_of_stock"],
+        Field(
+            description=(
+                "Filter by availability. Use 'out_of_stock' when the user asks "
+                "which products are unavailable, backordered, or sold out - it "
+                "returns ONLY those. Use 'in_stock' for buyable products only. "
+                "Defaults to 'any', which returns both."
+            )
+        ),
+    ] = "any",
     limit: Annotated[
         int, Field(description="Maximum results to return.", ge=1, le=30)
     ] = 8,
@@ -101,6 +112,7 @@ def search_products(
         max_price=max_price,
         min_rating=min_rating,
         in_stock_only=in_stock_only,
+        stock=stock,
         limit=limit,
     )
     return {
@@ -110,6 +122,7 @@ def search_products(
             "max_price": max_price,
             "min_rating": min_rating,
             "in_stock_only": in_stock_only,
+            "stock": stock,
         },
         "count": len(products),
         "products": products,

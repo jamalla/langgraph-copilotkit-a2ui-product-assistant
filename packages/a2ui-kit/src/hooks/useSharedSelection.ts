@@ -42,7 +42,7 @@ export function useSharedSelection(agentIdOverride?: string) {
     agentId,
     // BOTH, and the second one is not optional.
     //
-    // `updates` is not a per-hook filter — it configures the subscription for
+    // `updates` is not a per-hook filter - it configures the subscription for
     // this agent. Subscribing with only OnStateChanged made this hook the one
     // that set up the agent, and <CopilotPopup> then never received message
     // notifications: the run completed, the correct assistant message arrived

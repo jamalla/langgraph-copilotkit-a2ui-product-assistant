@@ -2,7 +2,7 @@
  * The twelve hops between "user types a question" and "React components appear".
  *
  * This is the teaching content. Every step names the file that does the work, so
- * the panel is a map into the repository rather than a diagram — the thing that
+ * the panel is a map into the repository rather than a diagram - the thing that
  * is hardest to reconstruct from the code is the ORDER, and that is exactly what
  * a list can carry.
  *
@@ -41,7 +41,7 @@ export const JOURNEY: JourneyStep[] = [
     id: "ask",
     stage: "browser",
     title: "You ask a question",
-    what: "The chat posts your message to the CopilotKit runtime endpoint. Nothing about UI has been decided yet — this is an ordinary HTTP request.",
+    what: "The chat posts your message to the CopilotKit runtime endpoint. Nothing about UI has been decided yet - this is an ordinary HTTP request.",
     where: "packages/a2ui-kit/src/provider.tsx → <A2UIChatProvider>",
     live: "question",
   },
@@ -87,7 +87,7 @@ export const JOURNEY: JourneyStep[] = [
     id: "surface",
     stage: "agent",
     title: "The worker writes DATA, not prose",
-    what: "It puts what it found into a `surface` dict — kind, title, and the raw products. It never writes a sentence for you. This is the hinge of the whole design.",
+    what: "It puts what it found into a `surface` dict - kind, title, and the raw products. It never writes a sentence for you. This is the hinge of the whole design.",
     where: "apps/agent/src/agent/state.py → SurfaceSpec",
     live: "surface",
     gotcha:
@@ -134,14 +134,14 @@ export const JOURNEY: JourneyStep[] = [
     id: "paint",
     stage: "render",
     title: "The middleware paints the surface",
-    what: "The A2UI middleware turns the operations into an `a2ui-surface` activity message. The whole lifecycle — building, retrying, painted — rides one message id and replaces in place, so you never see two loaders.",
+    what: "The A2UI middleware turns the operations into an `a2ui-surface` activity message. The whole lifecycle - building, retrying, painted - rides one message id and replaces in place, so you never see two loaders.",
     where: "@ag-ui/a2ui-middleware → ACTIVITY_SNAPSHOT",
   },
   {
     id: "render",
     stage: "render",
     title: "React mounts it, in your theme",
-    what: "The renderer starts at the component with id \"root\", walks the tree, resolves each binding, and mounts real React components. Colour and radius come from CSS variables scoped to .a2ui-surface — mapped to your own design tokens.",
+    what: "The renderer starts at the component with id \"root\", walks the tree, resolves each binding, and mounts real React components. Colour and radius come from CSS variables scoped to .a2ui-surface - mapped to your own design tokens.",
     where: "@copilotkit/a2ui-renderer · packages/a2ui-kit/src/styles/a2ui-theme.css",
     live: "theme",
     gotcha:

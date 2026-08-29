@@ -2,7 +2,7 @@
    CHAT WINDOW SIZING
    ---------------------------------------------------------------------------
    CopilotKit ships the popup at a fixed 420x560, anchored bottom-right. A2UI
-   surfaces are wide — a comparison table in a 420px column is unreadable — so
+   surfaces are wide - a comparison table in a 420px column is unreadable - so
    the size is driven by CSS variables that ChatResizer.tsx writes onto :root.
 
    The selector matches the popup's outer container by its Tailwind z-index
@@ -30,7 +30,7 @@ div[class*="z-[1200]"] {
    and stays 420x560 inside a 900x860 parent. Force every layer between the
    container and the message list to fill, then let the message list take the
    remaining height. `min-height: 0` is what allows a flex child to shrink and
-   therefore to scroll — without it the list grows instead of scrolling. */
+   therefore to scroll - without it the list grows instead of scrolling. */
 div[class*="z-[1200]"] > * {
   width: 100% !important;
   height: 100% !important;
@@ -51,7 +51,7 @@ div[class*="z-[1200]"] > * {
 
    Without `overflow: hidden` here the injected panels (tool list at the top,
    pipeline explainer at the bottom) push the body past its own height and the
-   whole popup grows a second scrollbar — the outer one visible in the report,
+   whole popup grows a second scrollbar - the outer one visible in the report,
    scrolling the chrome rather than the conversation. */
 .copilotKitChat {
   height: 100% !important;
@@ -91,7 +91,7 @@ div[class*="z-[1200]"] > * {
 }
 
 /* Wide generated content scrolls inside the surface instead of stretching the
-   window — the model picks its own layout and cannot know our column width. */
+   window - the model picks its own layout and cannot know our column width. */
 .a2ui-surface table,
 .a2ui-surface [class*="row"] {
   max-width: 100%;

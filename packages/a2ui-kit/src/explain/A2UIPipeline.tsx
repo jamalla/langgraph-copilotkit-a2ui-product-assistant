@@ -9,12 +9,12 @@ import { useA2UIKitConfig } from "../config";
  *
  * Generative UI has one genuinely confusing property: the interesting part
  * leaves no trace. A grid of product cards appears and there is nothing to
- * inspect — no component you wrote, no template, no route. This panel puts the
+ * inspect - no component you wrote, no template, no route. This panel puts the
  * whole chain back on screen: the data that went in, the component tree a
  * second model invented from it, and the operations that were emitted.
  *
  * The trace comes from `a2ui_trace` in the agent's own state, written by the
- * presenter in apps/agent/src/agent/nodes.py. It is explanatory only — the
+ * presenter in apps/agent/src/agent/nodes.py. It is explanatory only - the
  * agent never reads it back.
  */
 
@@ -167,7 +167,7 @@ export function A2UIPipeline() {
   /**
    * The trace is fetched from /api/a2ui-trace, which reads LangGraph directly.
    *
-   * The obvious source would be `useAgent().agent.state` — but that comes back
+   * The obvious source would be `useAgent().agent.state` - but that comes back
    * as an empty object in the browser. The trace is demonstrably present in the
    * STATE_SNAPSHOT events on the wire and `Object.keys(agent.state)` is still
    * `[]`. `useRenderTool`, `renderCustomMessages` and `useRenderActivityMessage`
@@ -247,11 +247,11 @@ export function A2UIPipeline() {
           {tab === "source" && (
             <>
               <p className="mb-2 text-[11px] leading-relaxed text-ink-muted">
-                A worker called MCP tools and wrote what it found into <code>surface</code> — data,
+                A worker called MCP tools and wrote what it found into <code>surface</code> - data,
                 never prose. Nothing here knows what the UI will look like.
               </p>
               <p className="mb-2 text-[11px] text-ink-faint">
-                question: <span className="text-ink">{trace.question || "—"}</span>
+                question: <span className="text-ink">{trace.question || "-"}</span>
               </p>
               <Code value={source} />
             </>
@@ -261,7 +261,7 @@ export function A2UIPipeline() {
             <>
               <p className="mb-2 text-[11px] leading-relaxed text-ink-muted">
                 A <strong>second model</strong> was shown the component catalog and the data above,
-                and invented this layout for this turn. Nobody wrote it in advance — that is what
+                and invented this layout for this turn. Nobody wrote it in advance - that is what
                 “dynamic schema” means, and why the same question can render differently twice.
                 <span className="text-positive"> ← </span>marks a value bound to the data model;
                 <span className="text-warning"> ⟲ </span>marks a repeating template.
@@ -294,9 +294,9 @@ export function A2UIPipeline() {
                 component with id <code>root</code> and walks down.
               </p>
               <p className="mb-2 text-[11px] text-ink-faint">
-                surface <span className="text-ink">{trace.surface_id ?? "—"}</span> · catalog{" "}
+                surface <span className="text-ink">{trace.surface_id ?? "-"}</span> · catalog{" "}
                 <span className="text-ink">
-                  {String(trace.catalog_id ?? "—").split("/").pop()}
+                  {String(trace.catalog_id ?? "-").split("/").pop()}
                 </span>
               </p>
               <Code value={trace.operations} max={340} />

@@ -156,8 +156,22 @@ def search(
     max_price: float | None = None,
     min_rating: float | None = None,
     in_stock_only: bool = False,
+    stock: str = "any",
     limit: int = 10,
 ) -> list[Product]:
+    """Rank products against a query and hard filters.
+
+    `stock` takes "any", "in_stock" or "out_of_stock".
+
+    Out-of-stock was not expressible before, only its opposite. So "highlight
+    the out of stock products" had no filter to use: the agent searched the
+    whole catalog, got everything back, and highlighted whatever ranked first,
+    which was in stock. The answer looked like a reasoning failure and was
+    really a missing capability.
+
+    `in_stock_only` stays for callers that already pass it, and is just the
+    boolean spelling of stock="in_stock".
+    """
     terms = _WORD.findall(query.lower()) if query and query.strip() else []
 
     scored: list[tuple[float, int, Product]] = []
@@ -170,6 +184,10 @@ def search(
         if min_rating is not None and p["rating"] < min_rating:
             continue
         if in_stock_only and not p["inStock"]:
+            continue
+        if stock == "in_stock" and not p["inStock"]:
+            continue
+        if stock == "out_of_stock" and p["inStock"]:
             continue
 
         if not terms:

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* Tailwind 4 generates only the classes it can SEE in your source files, and it
-   auto-detects sources relative to this stylesheet — which stops at this app.
+   auto-detects sources relative to this stylesheet - which stops at this app.
    Without this line every class used inside @a2ui/kit is silently missing: the
    chat controls collapse to unstyled text, the panels lose their layout, and
    the popup grows scrollbars around content that should have been contained.

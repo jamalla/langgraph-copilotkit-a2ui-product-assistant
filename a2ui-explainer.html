@@ -168,7 +168,7 @@ kbd{border:1px solid var(--rule-2);border-bottom-width:2px;border-radius:4px;pad
     <div>
       <p class="eyebrow">A2UI &middot; CopilotKit &middot; LangGraph</p>
       <h1>How a question becomes an interface</h1>
-      <p class="sub">Twelve hops from a typed sentence to mounted React components — each one naming the
+      <p class="sub">Twelve hops from a typed sentence to mounted React components - each one naming the
         file that does the work. Every code excerpt and every value below is taken from this
         repository and from one real run.</p>
     </div>
@@ -191,7 +191,7 @@ kbd{border:1px solid var(--rule-2);border-bottom-width:2px;border-radius:4px;pad
         <div class="big-n" id="bigN">01</div>
         <div style="min-width:0">
           <span class="where-chip" id="chip" data-s="browser">browser</span>
-          <h2 id="title">—</h2>
+          <h2 id="title">-</h2>
         </div>
       </div>
 
@@ -238,7 +238,7 @@ const Q = "show me noise cancelling headphones under $300";
 const STEPS = [
 {s:"browser", t:"You ask a question",
  n:"You type a question and press send. At this moment nothing about the interface has been decided. It is an ordinary web request carrying a sentence. The provider component in the A2UI kit package is what posts it.",
- w:"The chat posts your message to the CopilotKit runtime. Nothing about the interface has been decided — this is an ordinary HTTP request carrying a sentence.",
+ w:"The chat posts your message to the CopilotKit runtime. Nothing about the interface has been decided - this is an ordinary HTTP request carrying a sentence.",
  f:"packages/a2ui-kit/src/provider.tsx",
  c:`<b>&lt;A2UIChatProvider</b>
   runtimeUrl=<i>"/api/copilotkit"</i>
@@ -260,7 +260,7 @@ const STEPS = [
 A2UI catalog capabilities
 A2UI generation guidelines
 A2UI design guidelines`,
- trap:"An empty object is the entire configuration. It means: use the standard v0.9 basic catalog and let a model design the tree each turn — dynamic schema."},
+ trap:"An empty object is the entire configuration. It means: use the standard v0.9 basic catalog and let a model design the tree each turn - dynamic schema."},
 
 {s:"runtime", t:"AG-UI carries it to the graph",
  n:"A G U I is the protocol between the runtime and the agent. It carries the conversation, the component catalog, and any tools that live in your browser, over to the LangGraph server. Everything arrives as ordinary graph input.",
@@ -273,7 +273,7 @@ A2UI design guidelines`,
 }`,
  dl:"where it lands", d:`state["ag-ui"]["context"]
 state["tools"]`,
- trap:"Because the Node adapter is used, the Python helper that would populate ag-ui.a2ui_schema never runs. The catalog arrives as an ordinary context entry — code that reads only that key finds nothing."},
+ trap:"Because the Node adapter is used, the Python helper that would populate ag-ui.a2ui_schema never runs. The catalog arrives as an ordinary context entry - code that reads only that key finds nothing."},
 
 {s:"agent", t:"The supervisor picks one specialist",
  n:"Now we are inside the agent. A supervisor makes exactly one routing decision for this turn. It uses structured output, so the model cannot answer with something the graph has no route for. It returns a command that names the next node and updates the state in the same breath. Here it chose the catalog agent, and rewrote your sentence into plain search terms.",
@@ -301,7 +301,7 @@ refined : "noise cancelling headphones"`,
 
 {s:"agent", t:"The worker writes data, not prose",
  n:"This is the hinge the whole design turns on. The worker does not write you a sentence. It writes a surface: a kind, a title, and the raw products. Nothing at this point knows what the interface will look like. Because the worker emits data instead of prose, swapping plain text for generated UI later changed exactly one function.",
- w:"It puts what it found into a surface dict — kind, title, and the raw products. It never writes a sentence for you. This is the hinge the whole design turns on.",
+ w:"It puts what it found into a surface dict - kind, title, and the raw products. It never writes a sentence for you. This is the hinge the whole design turns on.",
  f:"apps/agent/src/agent/state.py → SurfaceSpec",
  c:`surface: SurfaceSpec = {
     <b>"kind"</b>:  "product_grid",
@@ -323,11 +323,11 @@ data  : 4 products`,
 ], config=config)`,
  dl:"prose produced", d:`"The Aether NC 700 stands out with
  28-hour battery and LDAC support…"`,
- trap:"Prose first, then render. Ask for both in one turn and the text attaches itself to a tool call — the bubble arrives empty while the answer sits on the wire."},
+ trap:"Prose first, then render. Ask for both in one turn and the text attaches itself to a tool call - the bubble arrives empty while the answer sits on the wire."},
 
 {s:"agent", t:"A second model designs the interface",
  n:"Here is the part that surprises people. A second, separate model designs the interface. It is shown the component catalog, your house style, and the data, and it invents a component tree for this turn. Nobody wrote this layout in advance. Its output is forced through a schema, checked against the catalog, and retried if it does not validate.",
- w:"generate_a2ui runs a separate LLM, shown the component catalog, your house style and the data. It invents a component tree for this turn — forced through a schema, validated against the catalog, retried on failure.",
+ w:"generate_a2ui runs a separate LLM, shown the component catalog, your house style and the data. It invents a component tree for this turn - forced through a schema, validated against the catalog, retried on failure.",
  f:"apps/agent/src/agent/a2ui.py · apps/agent/src/agent/design_rules.py",
  c:`_tool = get_a2ui_tools({
     "model": make_model(),
@@ -335,7 +335,7 @@ data  : 4 products`,
 })`,
  dl:"tree designed", d:`12 components, 5 types
 Column · Text · List · Card · Row`,
- trap:"It reads its data from ag-ui.context, never from the presenter's prompt. Miss that and it invents plausible products you do not sell — correct layout, fluent prose, fictional catalogue."},
+ trap:"It reads its data from ag-ui.context, never from the presenter's prompt. Miss that and it invents plausible products you do not sell - correct layout, fluent prose, fictional catalogue."},
 
 {s:"agent", t:"Three operations go on the wire",
  n:"The design leaves as three operations. Create surface opens a canvas. Update components sends the tree. Update data model sends the values. Structure and data travel separately, and that separation is what lets data stream into a layout that was only sent once.",
@@ -367,7 +367,7 @@ Column · Text · List · Card · Row`,
 
 {s:"render", t:"The middleware paints the surface",
  n:"Back in the browser. The A2UI middleware turns those operations into a single activity message. Building, retrying, and painted all share one message identity and replace each other in place, which is why you never see two loading skeletons stacked up.",
- w:"The A2UI middleware turns the operations into an activity message. The whole lifecycle — building, retrying, painted — rides one message id and replaces in place, so you never see two loaders.",
+ w:"The A2UI middleware turns the operations into an activity message. The whole lifecycle - building, retrying, painted - rides one message id and replaces in place, so you never see two loaders.",
  f:"@ag-ui/a2ui-middleware → ACTIVITY_SNAPSHOT",
  c:`{ "type": "ACTIVITY_SNAPSHOT",
   "activityType": <b>"a2ui-surface"</b>,
@@ -378,7 +378,7 @@ skeleton at 10s → painted at 15s`},
 
 {s:"render", t:"React mounts it, in your theme",
  n:"Finally the renderer starts at the component named root, walks the tree, resolves every path against the data model, and mounts real React components. The colours and corner radius come from variables scoped to the surface and mapped to your own design tokens, so an interface nobody designed still looks like the rest of your app, in light mode and dark.",
- w:"The renderer starts at the component with id root, walks the tree, resolves each binding against the data model, and mounts real React components. Colour and radius come from variables scoped to the surface — mapped to your own tokens.",
+ w:"The renderer starts at the component with id root, walks the tree, resolves each binding against the data model, and mounts real React components. Colour and radius come from variables scoped to the surface - mapped to your own tokens.",
  f:"@copilotkit/a2ui-renderer · packages/a2ui-kit/src/styles/a2ui-theme.css",
  c:`.a2ui-surface {
   --background: <b>var(--surface)</b>;
@@ -389,7 +389,7 @@ skeleton at 10s → painted at 15s`},
  dl:"on screen", d:`4 product cards, horizontal
 every colour from your tokens
 light and dark both correct`,
- trap:"Exactly one component must have id \"root\". Without it the surface renders as an empty placeholder — no error anywhere, just nothing."}
+ trap:"Exactly one component must have id \"root\". Without it the surface renders as an empty placeholder - no error anywhere, just nothing."}
 ];
 
 const $ = id => document.getElementById(id);
@@ -538,7 +538,7 @@ function hush(){
 
    Two reasons, both of them bugs rather than polish. Chromium stops speaking
    after roughly fifteen seconds and fires `onend` as though the utterance had
-   finished — on a paragraph-length line that lands mid-sentence, and the player
+   finished - on a paragraph-length line that lands mid-sentence, and the player
    moves on while you are still listening. Shorter utterances stay under the
    limit. It also lets the caption show the sentence actually being spoken. */
 function sentences(text){
@@ -548,8 +548,8 @@ function sentences(text){
 /* Speak the current step, one sentence at a time.
 
    `speakRun` is what keeps the voice and the screen together. `TTS.cancel()`
-   fires `onend` on whatever is mid-flight — the browser reports a cancelled
-   utterance as a finished one — so without this guard the cancel triggered by
+   fires `onend` on whatever is mid-flight - the browser reports a cancelled
+   utterance as a finished one - so without this guard the cancel triggered by
    moving to the next step ran the advance callback again, and the display ran
    further and further ahead of the narration. Every callback now checks that
    it still belongs to the current run before doing anything. */

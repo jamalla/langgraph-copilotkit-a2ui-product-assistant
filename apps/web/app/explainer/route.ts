@@ -4,14 +4,14 @@ import fs from "node:fs";
 import path from "node:path";
 
 /**
- * GET /explainer — serves <repo root>/a2ui-explainer.html.
+ * GET /explainer - serves <repo root>/a2ui-explainer.html.
  *
  * The explainer deliberately lives at the repo root, not in apps/web/public: it
  * documents the whole system, not the web app, and it is meant to be opened
  * straight off disk with no server running. Copying it into public/ would give
  * us two files that drift apart, so this route reads the one canonical copy.
  *
- * It walks up from cwd rather than hard-coding "../../", matching lib/data.ts —
+ * It walks up from cwd rather than hard-coding "../../", matching lib/data.ts -
  * so it works whether Next was started from apps/web, from the repo root, or
  * from inside the container.
  */
@@ -40,7 +40,7 @@ export function GET() {
   const file = resolveExplainer();
 
   // A missing explainer is a broken link, not a broken app. Say which file is
-  // missing instead of returning a blank 500 — the answer is always "it was not
+  // missing instead of returning a blank 500 - the answer is always "it was not
   // copied into the image".
   if (!file) {
     return new Response(

@@ -14,7 +14,7 @@ import { JOURNEY, STAGE_LABEL, type JourneyStep, type Stage } from "./journey";
  * names the file responsible for each, and fills in what actually happened on
  * the last turn.
  *
- * It reads the same /api/a2ui-trace endpoint as the in-chat explainer — one
+ * It reads the same /api/a2ui-trace endpoint as the in-chat explainer - one
  * source, two views: the chat annotates a single surface, this teaches the
  * pipeline.
  */
@@ -266,7 +266,7 @@ export function JourneyPanel() {
 
       {!trace && (
         <p className="border-b border-line bg-surface-2 px-4 py-2 text-[11px] text-ink-muted">
-          Ask the assistant something that shows products, then come back — every step fills in
+          Ask the assistant something that shows products, then come back - every step fills in
           with what actually happened.
         </p>
       )}
@@ -346,8 +346,8 @@ export function JourneyPanel() {
           </a>
         ) : (
           <p className="mb-2 rounded-control border border-line bg-surface-2 px-2 py-1.5 text-[10.5px] leading-relaxed text-ink-muted">
-            Every step here is a summary. For the full tree — each prompt, token counts, and the
-            A2UI subagent&rsquo;s retries — set{" "}
+            Every step here is a summary. For the full tree - each prompt, token counts, and the
+            A2UI subagent&rsquo;s retries - set{" "}
             <code className="font-mono text-ink">LANGSMITH_TRACING=true</code> and{" "}
             <code className="font-mono text-ink">LANGSMITH_API_KEY</code> in <code>.env</code>, then
             restart the agent. This panel will link straight to each run.

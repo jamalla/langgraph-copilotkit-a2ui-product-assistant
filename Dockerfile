@@ -1,4 +1,4 @@
-# A2UI Product Assistant — the whole product in one image.
+# A2UI Product Assistant - the whole product in one image.
 #
 # Three processes live here: the Next.js web app, the LangGraph agent, and the
 # MCP tool server. One image, because none of them is useful alone and only the
@@ -14,7 +14,7 @@
 # keeps the agent and the MCP server on internal loopback. See render.yaml.
 #
 # Layer order matters: manifests and lockfiles first, dependencies next, source
-# last — so editing a component rebuilds two layers instead of reinstalling
+# last - so editing a component rebuilds two layers instead of reinstalling
 # every dependency.
 
 # ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ FROM ghcr.io/astral-sh/uv:0.11.29 AS uv
 # ---------------------------------------------------------------------------
 # build
 # ---------------------------------------------------------------------------
-# node:22-bookworm-slim, plus Debian's python3 — which is 3.11 on bookworm, and
+# node:22-bookworm-slim, plus Debian's python3 - which is 3.11 on bookworm, and
 # both Python projects ask for >=3.11. One base image beats stitching two
 # runtimes together.
 FROM node:22-bookworm-slim AS build
@@ -60,7 +60,7 @@ RUN pnpm install --frozen-lockfile
 
 # --- Python dependencies ---------------------------------------------------
 # Both projects are installable packages, so uv needs their source present to
-# build them — hence the src copy here rather than with the rest of the code.
+# build them - hence the src copy here rather than with the rest of the code.
 COPY apps/mcp/pyproject.toml apps/mcp/uv.lock ./apps/mcp/
 COPY apps/mcp/src ./apps/mcp/src
 RUN uv sync --directory apps/mcp --all-groups --frozen
@@ -117,7 +117,7 @@ COPY --from=build /app /app
 
 # Activate pnpm from the version pinned in package.json now, at build time.
 # Left until first use, corepack would try to download it when the container
-# starts — a network call on the startup path, which is where you least want
+# starts - a network call on the startup path, which is where you least want
 # one.
 RUN corepack enable && corepack prepare --activate
 
@@ -126,7 +126,7 @@ RUN corepack enable && corepack prepare --activate
 RUN useradd --create-home --uid 10001 app && chown -R app:app /app
 USER app
 
-# Documentation only — Render ignores EXPOSE and routes to $PORT. 2024 and 8931
+# Documentation only - Render ignores EXPOSE and routes to $PORT. 2024 and 8931
 # are internal; publish them locally only when you want LangGraph Studio or the
 # MCP server from the host.
 EXPOSE 3000

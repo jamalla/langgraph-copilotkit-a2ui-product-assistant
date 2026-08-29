@@ -193,3 +193,49 @@ async def test_write_tools_announce_themselves(client):
     tools = {t.name: (t.description or "") for t in await client.list_tools()}
     for name in ("add_to_cart", "remove_from_cart"):
         assert "CHANGES STATE" in tools[name], f"{name} must declare that it writes"
+
+
+# ---------------------------------------------------------------------------
+# Availability filtering
+# ---------------------------------------------------------------------------
+#
+# "Highlight the out of stock products" used to return in-stock ones. Not a
+# reasoning failure: there was no filter for it. Only its opposite existed, so
+# the agent searched the whole catalog and highlighted whatever ranked first.
+
+
+def test_out_of_stock_returns_only_unavailable_products():
+    from mcp_products import catalog
+
+    out = catalog.search(stock="out_of_stock", limit=30)
+    assert out, "the seed catalog is supposed to contain an out-of-stock product"
+    assert all(not p["inStock"] for p in out)
+
+
+def test_in_stock_returns_only_available_products():
+    from mcp_products import catalog
+
+    assert all(p["inStock"] for p in catalog.search(stock="in_stock", limit=30))
+
+
+def test_the_two_halves_partition_the_catalog():
+    from mcp_products import catalog
+
+    every = catalog.search(limit=30)
+    out = catalog.search(stock="out_of_stock", limit=30)
+    into = catalog.search(stock="in_stock", limit=30)
+    assert len(out) + len(into) == len(every)
+
+
+def test_stock_any_is_the_default_and_filters_nothing():
+    from mcp_products import catalog
+
+    assert len(catalog.search(limit=30)) == len(catalog.search(stock="any", limit=30))
+
+
+def test_in_stock_only_still_works_for_callers_that_pass_it():
+    from mcp_products import catalog
+
+    assert catalog.search(in_stock_only=True, limit=30) == catalog.search(
+        stock="in_stock", limit=30
+    )

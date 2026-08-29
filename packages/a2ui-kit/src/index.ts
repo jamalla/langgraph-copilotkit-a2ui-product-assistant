@@ -1,5 +1,5 @@
 /**
- * @a2ui/kit — the generative-UI layer for CopilotKit + A2UI.
+ * @a2ui/kit - the generative-UI layer for CopilotKit + A2UI.
  *
  * Everything here is about how an AGENT'S UI reaches a browser. Nothing knows
  * what your domain objects are, which is what makes it reusable across apps.

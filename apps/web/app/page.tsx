@@ -11,7 +11,7 @@ import { listCategories, priceBounds, queryProducts } from "@/lib/data";
 export const dynamic = "force-dynamic";
 
 /**
- * Server component. Reads the catalog directly from disk — no self-fetch to our
+ * Server component. Reads the catalog directly from disk - no self-fetch to our
  * own API route, which would be a pointless network hop on the server.
  */
 export default function HomePage() {
@@ -30,7 +30,7 @@ export default function HomePage() {
             {products.length} products across {facets.length} categories.
             <span className="text-ink-faint">
               {" "}
-              Ask the assistant, bottom right — click a card first and it will know what
+              Ask the assistant, bottom right - click a card first and it will know what
               &ldquo;this one&rdquo; means.
             </span>
           </p>

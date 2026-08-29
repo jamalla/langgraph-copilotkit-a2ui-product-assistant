@@ -21,8 +21,8 @@ import { JourneyPanel } from "./explain/JourneyPanel";
  * and confirmation for any write the agent tries to make.
  *
  * Nothing in this package knows what a product is. That is the boundary: it is
- * about how an agent's UI reaches a browser, so a second app — an admin panel,
- * a support console — gets the entire layer from one import.
+ * about how an agent's UI reaches a browser, so a second app - an admin panel,
+ * a support console - gets the entire layer from one import.
  *
  * It is also where the CopilotKit-version-fragile parts live: the
  * `.copilotKitChat` selector, the `z-[1200]` sizing rules, the overrides for
@@ -35,7 +35,7 @@ import { JourneyPanel } from "./explain/JourneyPanel";
  * How tool calls appear in the conversation.
  *
  * Without a renderer CopilotKit falls back to putting the raw call in the chat:
- * a bubble reading `generate_a2ui` — or, mid-stream, the entire arguments
+ * a bubble reading `generate_a2ui` - or, mid-stream, the entire arguments
  * payload as text. Backend calls become a quiet chip instead; the A2UI call
  * renders nothing at all, because it paints its own surface and announcing it
  * would caption a picture the user is already looking at.
@@ -115,7 +115,7 @@ export interface A2UIChatProviderProps extends A2UIKitConfig {
   /** Placeholder in the chat input. */
   inputPlaceholder?: string;
   /**
-   * App-specific pieces that need the CopilotKit context — typically your
+   * App-specific pieces that need the CopilotKit context - typically your
    * `useFrontendTool` declarations. Things only the browser can do (scrolling,
    * focus, viewport measurement) are app concerns, not kit concerns.
    */
@@ -123,7 +123,7 @@ export interface A2UIChatProviderProps extends A2UIKitConfig {
   /** Your page. Rendered inside the provider so hooks work anywhere. */
   app: React.ReactNode;
   /**
-   * Show the left-hand "How A2UI works" panel — the twelve hops from question
+   * Show the left-hand "How A2UI works" panel - the twelve hops from question
    * to rendered UI, each naming the file that does the work, filled in with
    * what actually happened on the last turn.
    *

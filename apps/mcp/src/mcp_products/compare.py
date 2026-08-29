@@ -125,7 +125,7 @@ def compare(product_ids: list[str]) -> dict[str, Any]:
         "cross_category": cross_category,
         "missing_ids": missing,
         "judgement_note": (
-            "This matrix contains facts only — no winner has been chosen. "
+            "This matrix contains facts only - no winner has been chosen. "
             "Decide which rows matter for the user's stated use case and say so "
             "explicitly. Rows in `identical_rows` are not differentiators. "
             "Respect any `caveat` on a row."

@@ -14,16 +14,16 @@ import { ToolList } from "./ToolList";
  * Three documented extension points were tried first, and none of them fired
  * for the A2UI call:
  *
- *   - `useRenderTool({ name: "*" })` — renders MCP tool calls fine, never sees
+ *   - `useRenderTool({ name: "*" })` - renders MCP tool calls fine, never sees
  *     the A2UI one (it is not delivered as an ordinary tool call).
- *   - `renderCustomMessages` — the provider prop for injecting UI into the
+ *   - `renderCustomMessages` - the provider prop for injecting UI into the
  *     message list; its render never ran for these runs.
- *   - `useRenderActivityMessage` — the A2UI surface arrives as an
+ *   - `useRenderActivityMessage` - the A2UI surface arrives as an
  *     `a2ui-surface` activity, but claiming that type would mean re-rendering
  *     the surface ourselves rather than annotating it.
  *
- * So this appends a mount node to `.copilotKitMessages` — a class verified
- * present in the live DOM — and portals into it. Less elegant than a hook, and
+ * So this appends a mount node to `.copilotKitMessages` - a class verified
+ * present in the live DOM - and portals into it. Less elegant than a hook, and
  * it depends on a class name that a CopilotKit upgrade could rename, so it
  * fails soft: no node found, nothing rendered, chat unaffected. If the panel
  * disappears after an upgrade, run `node scripts/dom-probe.mjs` and check what
@@ -36,7 +36,7 @@ const TOOLS_ID = "a2ui-tools-slot";
 /**
  * Two different hosts, because they appear at different times.
  *
- * `.copilotKitMessages` does not exist until the first message is sent — so
+ * `.copilotKitMessages` does not exist until the first message is sent - so
  * mounting there means the panels are invisible exactly when someone wants
  * them, and they vanish again when the thread changes. `.copilotKitChat` is
  * present as soon as the popup opens and stays put, so both panels anchor to
@@ -70,8 +70,8 @@ export function ChatPipelineSlot() {
 
       // Pipeline panel: bottom of the chat body, just above the input.
       //
-      // The message list would be a more natural home — right under the surface
-      // it explains — but it only exists once a message has been sent, and it
+      // The message list would be a more natural home - right under the surface
+      // it explains - but it only exists once a message has been sent, and it
       // is re-created as the thread changes. Anchoring to the chat body means
       // the panel survives all of that.
       if (!body) return false;

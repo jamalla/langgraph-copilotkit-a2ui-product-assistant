@@ -1,7 +1,7 @@
 /**
  * The shape of data/products.json.
  *
- * apps/mcp mirrors this as a Pydantic model. The two are kept in sync by hand —
+ * apps/mcp mirrors this as a Pydantic model. The two are kept in sync by hand -
  * that is the deliberate cost of letting the services stay independent. If you
  * change a field here, change it there too.
  */

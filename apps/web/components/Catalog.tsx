@@ -13,7 +13,7 @@ import { ProductDetailSheet } from "./ProductDetailSheet";
  *
  * `initialProducts` is rendered by the server, so the first paint is complete
  * HTML with no loading state. Every filter change after that goes back to
- * /api/products — filtering stays on the server, and the browser never holds
+ * /api/products - filtering stays on the server, and the browser never holds
  * the full catalog.
  *
  * In Part 5 this component grows a `useCoAgent` hook so `selectedIds` becomes
@@ -47,7 +47,7 @@ export function Catalog({
   const [active, setActive] = useState<Product | null>(null);
 
   // Part 5: this used to be `useState<string[]>([])`. That is the entire change
-  // on the React side — one hook swap — because selection was always a single
+  // on the React side - one hook swap - because selection was always a single
   // piece of state in a single place. Now the agent shares it.
   const { selectedIds, select, intent, routeReason } = useSharedSelection();
 
@@ -115,7 +115,7 @@ export function Catalog({
 
       {routeReason && (
         <p className="mb-3 text-xs text-ink-faint">
-          <span className="font-medium text-ink-muted">agent:</span> {intent} — {routeReason}
+          <span className="font-medium text-ink-muted">agent:</span> {intent} - {routeReason}
         </p>
       )}
 

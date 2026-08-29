@@ -14,7 +14,7 @@ import { createPortal } from "react-dom";
  *   - A2UI surfaces are wide. A comparison table in a 420px column is unusable.
  *
  * So this renders its own handle in the TOP-LEFT of the popup, where dragging
- * grows the panel up and to the left — into the viewport rather than out of it.
+ * grows the panel up and to the left - into the viewport rather than out of it.
  * Size lives in CSS variables on :root, read by copilot-chat.css, and persists
  * per browser.
  */
@@ -28,7 +28,7 @@ const KEY_PREV = "chat-size-before-max";
  * The largest the popup can be without leaving the viewport.
  *
  * The anchor offsets are part of the budget, not decoration. copilot-chat.css
- * pins the popup with `inset: auto 1.5rem 6rem auto` — 24px from the right and
+ * pins the popup with `inset: auto 1.5rem 6rem auto` - 24px from the right and
  * 96px from the bottom, the latter clearing the launcher button. A height of
  * `0.86 * innerHeight` looks safe and is not: on a 608px viewport it yields 523,
  * and 523 + 96 pushes the popup's TOP to -11, so the resize controls sit above
@@ -98,7 +98,7 @@ export function ChatResizer() {
     try {
       localStorage.setItem(KEY, JSON.stringify(size));
     } catch {
-      /* private mode — the size just will not persist */
+      /* private mode - the size just will not persist */
     }
   }, [size]);
 
@@ -182,7 +182,7 @@ export function ChatResizer() {
    * Rendered INSIDE the popup, absolutely positioned at its top-left.
    *
    * The previous version placed the bar with `fixed` and computed its offset
-   * from the stored size — `right: calc(1.5rem + Wpx - 2rem)`. That anchors the
+   * from the stored size - `right: calc(1.5rem + Wpx - 2rem)`. That anchors the
    * bar's RIGHT edge near the popup's LEFT edge, so the bar extends leftwards
    * and slides off-screen as the popup grows: measured at x-6 on an 876px
    * viewport. Anchoring to the popup itself removes the arithmetic, and the

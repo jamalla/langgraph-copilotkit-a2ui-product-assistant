@@ -7,7 +7,7 @@
  *
  * Keep it to the fields the UI actually reads or writes. Every field listed
  * here is one more thing that has to stay in sync across two languages, so
- * `surface`, `comparison` and the rest are deliberately absent — the agent owns
+ * `surface`, `comparison` and the rest are deliberately absent - the agent owns
  * those and the browser never touches them.
  */
 
@@ -18,7 +18,7 @@ export interface SharedAgentState {
    * The only genuinely BIDIRECTIONAL field: the React grid writes it when you
    * click a card, and the agent writes it when it decides what a turn is about.
    * That is what makes "is this one good for gaming?" resolve with no product
-   * named — and equally, what makes a card light up when the agent picks it.
+   * named - and equally, what makes a card light up when the agent picks it.
    */
   selected_product_ids?: string[];
 
@@ -69,7 +69,7 @@ export function findConfirmWrite(...candidates: unknown[]): ConfirmWriteInterrup
         const parsed: unknown = JSON.parse(candidate);
         if (isConfirmWriteInterrupt(parsed)) return parsed;
       } catch {
-        // not JSON — keep looking
+        // not JSON - keep looking
       }
     }
 

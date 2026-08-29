@@ -3,7 +3,7 @@
    ---------------------------------------------------------------------------
    This file is the payoff for the token discipline in Part 1.
 
-   The agent invents its component tree at runtime — we never wrote a
+   The agent invents its component tree at runtime - we never wrote a
    ProductCard for it. So how does agent-generated UI end up looking like the
    app it lives in? Not through components: through CSS custom properties that
    the A2UI renderer reads, scoped to `.a2ui-surface`.
@@ -103,8 +103,8 @@
      background: rgb(204, 204, 204)               dividers and placeholders
 
    In light mode #666 merely looks slightly off. In dark mode the surface is
-   #161b22 and #666 text lands at roughly 2.5:1 contrast — measured, not
-   guessed — which is unreadable.
+   #161b22 and #666 text lands at roughly 2.5:1 contrast - measured, not
+   guessed - which is unreadable.
 
    Inline styles can only be overridden with `!important`, and the attribute
    substring selector is what lets us target them without knowing which

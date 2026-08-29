@@ -9,7 +9,7 @@ import { useA2UIKitConfig } from "../config";
  *
  * The list is fetched, not hard-coded: /api/tools proxies the MCP server's own
  * introspection route. Add a tool to apps/mcp and it shows up here without a
- * frontend change — which is the point, since the whole reason the tools live
+ * frontend change - which is the point, since the whole reason the tools live
  * in an MCP server is that the agent and the UI both discover them rather than
  * having them baked in.
  *
@@ -17,7 +17,7 @@ import { useA2UIKitConfig } from "../config";
  *
  *   write    changes state, so it needs a human to confirm (see interrupt() in
  *            the cart flow). Reads can be called speculatively; writes cannot.
- *   browser  only the browser can do it — scroll, focus, measure the viewport.
+ *   browser  only the browser can do it - scroll, focus, measure the viewport.
  *            No backend can scroll your page.
  */
 
@@ -89,7 +89,7 @@ export function ToolList() {
                     tool.where === "browser"
                       ? "Runs in this browser tab"
                       : tool.write
-                        ? "Changes state — you will be asked to confirm"
+                        ? "Changes state - you will be asked to confirm"
                         : "Read-only"
                   }
                   className={`mt-0.5 shrink-0 rounded-pill px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide ${
@@ -118,7 +118,7 @@ export function ToolList() {
           </ul>
 
           <p className="mt-2.5 border-t border-line pt-2 text-[10.5px] leading-relaxed text-ink-faint">
-            Backend tools come from the MCP server and are discovered at runtime — the agent is
+            Backend tools come from the MCP server and are discovered at runtime - the agent is
             never told about them in code. Browser tools are declared in React because no server can
             scroll your page.
           </p>

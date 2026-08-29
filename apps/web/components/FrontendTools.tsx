@@ -11,7 +11,7 @@ import { AGENT_ID } from "@/lib/agent";
  * Things only THIS app's browser can do.
  *
  * The dividing line worth internalising: MCP tools are for what the server
- * knows or can do; frontend tools are for what only the browser can do —
+ * knows or can do; frontend tools are for what only the browser can do -
  * scrolling, focus, reading a DOM measurement, opening a native file picker.
  * No backend can scroll your page.
  *

@@ -4,7 +4,7 @@
  *
  * Why this exists: the `useAgent: Agent 'default' not found` failure was
  * invisible to every check in this repo. `tsc` was clean, both pytest suites
- * passed, and driving the runtime with `curl` produced a perfect A2UI surface —
+ * passed, and driving the runtime with `curl` produced a perfect A2UI surface -
  * because none of those ever MOUNT REACT. The bug lived entirely in hook
  * defaults resolved at runtime in the browser.
  *
@@ -31,7 +31,7 @@ const BROWSERS = [
 
 const browser = BROWSERS.find((p) => fs.existsSync(p));
 if (!browser) {
-  console.error("No Edge or Chrome found — skipping browser smoke test.");
+  console.error("No Edge or Chrome found - skipping browser smoke test.");
   process.exit(0);
 }
 

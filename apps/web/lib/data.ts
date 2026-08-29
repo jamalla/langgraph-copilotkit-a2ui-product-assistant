@@ -14,7 +14,7 @@ import type {
 /**
  * Server-only access to the shared seed catalog at <repo root>/data/products.json.
  *
- * The file lives OUTSIDE this app on purpose — apps/mcp (Python) reads the very
+ * The file lives OUTSIDE this app on purpose - apps/mcp (Python) reads the very
  * same file. Rather than hard-coding "../../data", we walk up from cwd until we
  * find it, so this keeps working whether Next is started from apps/web, from the
  * repo root, or from a standalone build output.
