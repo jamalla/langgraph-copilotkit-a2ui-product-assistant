@@ -354,6 +354,63 @@ def display_product(product: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def display_cart_item(item: dict[str, Any]) -> dict[str, Any]:
+    """One cart line, flattened into the same field names a product uses.
+
+    A cart line is not a catalog row. It arrives as `product_id`, `unit_price`,
+    `quantity` and `line_total`, and carries none of `imageUrl`, `priceLabel`,
+    `stockLabel` or the spec pairs that HOUSE_STYLE promises the subagent will
+    be there.
+
+    So the model was told a set of fields existed, found none of them, and had
+    to improvise a tree whose every binding resolved to nothing. Giving the cart
+    the same field names as every other surface means there is one shape to
+    learn and one set of rules that applies everywhere.
+    """
+    unit = item.get("unit_price")
+    line = item.get("line_total")
+    quantity = item.get("quantity") or 1
+
+    return {
+        "id": item.get("product_id"),
+        "name": item.get("name"),
+        "imageUrl": item.get("imageUrl"),
+        "imageAlt": item.get("imageAlt") or item.get("name"),
+        "brandLine": str(item.get("brand") or "").upper(),
+        "priceLabel": f"${unit:,.0f}" if isinstance(unit, (int, float)) else "",
+        "quantityLabel": f"Qty {quantity}",
+        "lineTotalLabel": f"${line:,.0f}" if isinstance(line, (int, float)) else "",
+        "stockLabel": "In stock" if item.get("in_stock", True) else "Out of stock",
+        # Present but empty, so a card template written for products binds
+        # cleanly against a cart line instead of failing halfway down.
+        "description": "",
+        "spec1Label": "",
+        "spec1Value": "",
+        "spec2Label": "",
+        "spec2Value": "",
+        "spec3Label": "",
+        "spec3Value": "",
+        "spec4Label": "",
+        "spec4Value": "",
+    }
+
+
+def display_cart(cart: dict[str, Any]) -> dict[str, Any]:
+    """A cart with its lines projected and its totals pre-formatted."""
+    items = cart.get("items")
+    subtotal = cart.get("subtotal")
+    count = cart.get("item_count") or 0
+
+    return {
+        **cart,
+        "items": [display_cart_item(i) for i in items] if isinstance(items, list) else [],
+        "subtotalLabel": (
+            f"${subtotal:,.0f}" if isinstance(subtotal, (int, float)) else ""
+        ),
+        "itemCountLabel": f"{count} item" if count == 1 else f"{count} items",
+    }
+
+
 def surface_for_display(surface: dict[str, Any] | None) -> dict[str, Any] | None:
     """Replace raw products in a surface with their display projections.
 
@@ -377,6 +434,10 @@ def surface_for_display(surface: dict[str, Any] | None) -> dict[str, Any] | None
     # `comparison`. Missing that branch meant compare views were the only place
     # in the app that showed no photograph and an unformatted price, which read
     # as a rendering bug rather than a projection that did not run.
+    cart = data.get("cart")
+    if isinstance(cart, dict):
+        return {**surface, "data": {**data, "cart": display_cart(cart)}}
+
     comparison = data.get("comparison")
     if isinstance(comparison, dict) and isinstance(comparison.get("products"), list):
         return {

@@ -101,6 +101,24 @@ empty Text renders as nothing, so bind all four without checking.
 7. Up to four Rows, justify="spaceBetween", each holding two Texts: specNLabel
    on the left, specNValue on the right.
 
+
+### A cart surface
+
+A cart arrives under `cart`, not `products`. Its lines are in `cart.items`
+and use the SAME field names as a product, plus three of their own:
+
+  quantityLabel   "Qty 2"
+  lineTotalLabel  "$6,598"     price for that line, already multiplied
+  cart.subtotalLabel and cart.itemCountLabel for the totals
+
+Build it as a Column: a Text variant="h2" with itemCountLabel, then a List
+bound to /cart/items, then a Row with justify="spaceBetween" holding the
+word "Subtotal" and subtotalLabel.
+
+Each line is a Card with the Image, the name, priceLabel, quantityLabel and
+lineTotalLabel. The spec fields exist on a cart line but are empty, so leave
+them out rather than binding four blank Rows.
+
 ### Never
 
 - Never invent an imageUrl or guess one from a product id. Bind the field, or

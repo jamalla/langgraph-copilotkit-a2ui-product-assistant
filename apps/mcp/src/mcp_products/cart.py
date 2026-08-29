@@ -72,6 +72,13 @@ def view() -> dict[str, Any]:
                 "product_id": product_id,
                 "name": product["name"],
                 "brand": product["brand"],
+                # The cart is rendered like every other product surface, so it
+                # needs the same photo. This function already holds the full
+                # catalog row; leaving it out only forced the caller to look the
+                # product up a second time.
+                "imageUrl": product.get("imageUrl"),
+                "imageAlt": product.get("imageAlt"),
+                "in_stock": product["inStock"],
                 "unit_price": product["price"],
                 "quantity": quantity,
                 "line_total": line_total,

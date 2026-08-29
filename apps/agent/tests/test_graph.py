@@ -713,3 +713,78 @@ def test_a_surface_cannot_outlive_the_turn_that_made_it():
     from agent.state import empty_turn, last_write_wins
 
     assert last_write_wins({"kind": "compare_table"}, empty_turn()["surface"]) is None
+
+
+# ---------------------------------------------------------------------------
+# Cart surfaces
+# ---------------------------------------------------------------------------
+#
+# A cart line is not a catalog row: it arrives as product_id / unit_price /
+# quantity / line_total and carries none of the fields HOUSE_STYLE promises the
+# subagent it will find. Told those fields existed and finding none of them, the
+# model produced a tree whose every binding resolved to nothing.
+
+
+def _cart():
+    return {
+        "items": [
+            {
+                "product_id": "lp-008",
+                "name": "Forge Studio 16",
+                "brand": "Lumen",
+                "imageUrl": "/products/lp-008.jpg",
+                "imageAlt": "a laptop",
+                "in_stock": True,
+                "unit_price": 3299,
+                "quantity": 2,
+                "line_total": 6598,
+            }
+        ],
+        "item_count": 2,
+        "subtotal": 6598.0,
+        "currency": "USD",
+    }
+
+
+def test_cart_lines_use_the_same_field_names_as_products():
+    from agent.a2ui import display_cart
+
+    line = display_cart(_cart())["items"][0]
+    for field in ("name", "imageUrl", "imageAlt", "priceLabel", "brandLine", "stockLabel"):
+        assert field in line, f"a cart line is missing {field}"
+    assert line["priceLabel"] == "$3,299"
+    assert line["quantityLabel"] == "Qty 2"
+    assert line["lineTotalLabel"] == "$6,598"
+
+
+def test_cart_totals_are_preformatted():
+    from agent.a2ui import display_cart
+
+    out = display_cart(_cart())
+    assert out["subtotalLabel"] == "$6,598"
+    assert out["itemCountLabel"] == "2 items"
+
+
+def test_one_item_is_not_called_items():
+    from agent.a2ui import display_cart
+
+    cart = _cart()
+    cart["item_count"] = 1
+    assert display_cart(cart)["itemCountLabel"] == "1 item"
+
+
+def test_spec_slots_exist_on_a_cart_line_so_a_product_template_still_binds():
+    from agent.a2ui import display_cart
+
+    line = display_cart(_cart())["items"][0]
+    assert line["spec1Label"] == "" and line["spec4Value"] == ""
+
+
+def test_surface_for_display_reaches_into_a_cart_surface():
+    from agent.a2ui import surface_for_display
+
+    out = surface_for_display(
+        {"kind": "cart", "title": "Your cart", "data": {"cart": _cart(), "note": "n"}}
+    )
+    assert out["data"]["note"] == "n"
+    assert out["data"]["cart"]["items"][0]["priceLabel"] == "$3,299"
