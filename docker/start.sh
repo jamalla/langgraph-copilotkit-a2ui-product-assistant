@@ -69,7 +69,13 @@ log "agent  127.0.0.1:2024  (internal)"
 # Render logs show it: "3 changes detected" every ten seconds, for as long
 # as the service is up. On a shared-CPU instance that idle churn is most of
 # the CPU budget, and it buys nothing: the code cannot change in an image.
-uv run --directory apps/agent langgraph dev --host 0.0.0.0 --port 2024 --no-browser --no-reload &
+# --n-jobs-per-worker: the default is one, and the Render logs show it as
+# "Worker stats active=0 available=1 max=1". One job at a time means a
+# second question queues behind the first rather than running, which reads
+# as the chat being stuck when it is really waiting its turn. Four is enough
+# to absorb a double-send without pretending a shared-CPU instance can do
+# real parallel work.
+uv run --directory apps/agent langgraph dev --host 0.0.0.0 --port 2024 --no-browser --no-reload --n-jobs-per-worker 4 &
 pids="$pids $!"
 wait_for "http://127.0.0.1:2024/ok" "agent" 180
 

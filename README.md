@@ -948,6 +948,22 @@ Two honest caveats for a hosted deployment:
 
 ## Troubleshooting
 
+### The chat looks stuck on a second question
+
+`langgraph dev` runs one job at a time by default. Its own log says so:
+
+```
+Worker stats  active=0 available=1 max=1
+```
+
+So a second question does not run, it QUEUES behind the first, and on a
+shared-CPU instance the first is slow enough that the wait reads as a hang.
+Nothing errors, because nothing is wrong: the run has not started yet.
+
+`docker/start.sh` passes `--n-jobs-per-worker 4`. Verified against a real
+agent, the same line then reports `available=4 max=4`.
+
+
 | Symptom | Cause | Fix |
 |---|---|---|
 | `Could not reach the MCP server` | mcp not running | `pnpm dev:mcp` |

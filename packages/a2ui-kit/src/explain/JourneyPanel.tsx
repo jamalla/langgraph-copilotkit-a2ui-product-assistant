@@ -235,14 +235,24 @@ export function JourneyPanel() {
       }
     };
     void load();
-    // A turn takes a few seconds end to end, so the idle poll is far too slow
-    // to show anything moving. Tighten it only while something is happening.
-    const timer = setInterval(load, run.running ? 600 : tracePollMs);
+    // One fixed, fast-enough interval rather than one that speeds up once a run
+    // is detected.
+    //
+    // That was circular: the poll only tightened after `running` was already
+    // true, but the only way to learn it was true was to poll. At the 3s idle
+    // rate a whole turn could begin and end between two polls, so the panel
+    // never once saw `running` and the steps never animated. Changing the
+    // interval also tore down and recreated it on every flip, dropping polls at
+    // exactly the moment they mattered.
+    //
+    // A request per second to a route on the same origin is not worth
+    // optimising away.
+    const timer = setInterval(load, Math.min(tracePollMs, 1000));
     return () => {
       alive = false;
       clearInterval(timer);
     };
-  }, [open, traceEndpoint, tracePollMs, run.running]);
+  }, [open, traceEndpoint, tracePollMs]);
 
   if (!open) {
     return (
