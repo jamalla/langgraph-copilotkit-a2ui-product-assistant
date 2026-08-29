@@ -520,3 +520,42 @@ def test_tool_summary_is_a_summary_not_the_payload():
     # No raw payloads leaked through.
     assert "products" not in str(out[0].get("products", ""))
     assert all(set(e) <= {"tool", "result"} for e in out)
+
+
+# ---------------------------------------------------- your own style rules
+
+
+def test_house_style_is_appended_not_substituted():
+    """The built-in guidelines carry protocol constraints, not just taste.
+
+    Replacing them wholesale drops "exactly one component must have id root"
+    and the relative-vs-absolute path rules for List templates — and a surface
+    that breaks either renders blank. So the house style goes in as
+    `composition_guide`, which is APPENDED.
+    """
+    from ag_ui_a2ui_toolkit import build_subagent_prompt
+
+    from agent.design_rules import HOUSE_STYLE
+
+    prompt = build_subagent_prompt(
+        context_prompt="## Available Components\n{}",
+        guidelines={"composition_guide": HOUSE_STYLE},
+    )
+
+    # The house style arrived...
+    assert "House rules for this product catalog" in prompt
+    # ...and the protocol rules survived it.
+    assert "COMPONENT ID RULES" in prompt
+    assert "PATH RULES FOR TEMPLATES" in prompt
+    # ...and it comes last, so it refines rather than contradicts.
+    assert prompt.index("House rules") > prompt.index("COMPONENT ID RULES")
+
+
+def test_render_tool_passes_the_house_style():
+    import inspect
+
+    from agent import a2ui
+
+    source = inspect.getsource(a2ui.render_tool)
+    assert "composition_guide" in source
+    assert "HOUSE_STYLE" in source

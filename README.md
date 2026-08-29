@@ -111,6 +111,26 @@ explanation, the file path, and the trap people hit there.
 
 On by default in development (`showJourney` on `<A2UIChatProvider>`), off in production.
 
+### Making generated UI follow YOUR style
+
+Two levers, and they do different jobs:
+
+| Want to change | Edit | How it works |
+|---|---|---|
+| Colour, radius, type | [`packages/a2ui-kit/src/styles/a2ui-theme.css`](packages/a2ui-kit/src/styles/a2ui-theme.css) | 8 CSS variables scoped to `.a2ui-surface`, mapped to your tokens. Applies after the fact — **deterministic**, CSS cannot be ignored. |
+| Which components, how arranged | [`apps/agent/src/agent/design_rules.py`](apps/agent/src/agent/design_rules.py) | Reaches the model that *designs* the tree. **Influential, not guaranteed** — it is a prompt. |
+
+If you can express it in CSS, do it in CSS. Come to `design_rules.py` for what CSS cannot reach:
+*"comparisons must be horizontal"*, *"never use Image"*, *"every card leads with the price"*.
+
+The house style is passed as `composition_guide`, which is **appended** to the built-in guidelines
+rather than replacing them — those defaults carry protocol constraints (exactly one component with
+id `"root"`, relative paths inside `List` templates) that a surface will not render without.
+
+Measured effect of adding the default rules in that file: component count on the same question
+dropped from ~38 to **12**, and every rule held — no `Image`, `List` of `Card`, `h2` title outside
+the list, `h3` product names, `caption` for metadata, `Row justify="spaceBetween"` for spec pairs.
+
 ### Going deeper: LangSmith
 
 The panel shows a summary. LangSmith has the full tree — every prompt sent, token counts per call,

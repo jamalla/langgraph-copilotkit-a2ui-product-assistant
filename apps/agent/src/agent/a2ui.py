@@ -48,6 +48,7 @@ from langchain_core.tools import BaseTool
 from langgraph.prebuilt.tool_node import ToolRuntime
 from langgraph.runtime import get_runtime
 
+from .design_rules import HOUSE_STYLE
 from .llm import make_model
 
 A2UI_TOOL_NAME = "generate_a2ui"
@@ -61,10 +62,22 @@ def render_tool() -> BaseTool:
     The model passed here is the SUBAGENT that designs the component tree - it
     is a separate call from the one that decides to render, and it is the one
     that pays for the extra latency.
+
+    `composition_guide` carries your house style (design_rules.py). It is
+    APPENDED to the built-in generation and design guidelines rather than
+    replacing them, because those defaults carry protocol constraints the
+    surface will not render without - exactly one component with id "root",
+    relative paths inside List templates. To replace a block instead, pass
+    `design_guidelines`; an empty string suppresses one entirely.
     """
     global _tool
     if _tool is None:
-        _tool = get_a2ui_tools({"model": make_model()})
+        _tool = get_a2ui_tools(
+            {
+                "model": make_model(),
+                "guidelines": {"composition_guide": HOUSE_STYLE},
+            }
+        )
     return _tool
 
 
