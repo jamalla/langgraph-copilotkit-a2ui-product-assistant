@@ -197,29 +197,10 @@ type TabKey = "source" | "tree" | "data" | "ops";
 
 export function A2UIPipeline() {
   const [state, setState] = useState<AgentStateWithTrace | null>(null);
-  const [hasSurface, setHasSurface] = useState(false);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabKey>("source");
   const { traceEndpoint, tracePollMs, threadId } = useA2UIKitConfig();
 
-  /**
-   * Only explain a surface that is actually on screen.
-   *
-   * /api/a2ui-trace returns the most recent thread that rendered anything, which
-   * on a freshly opened chat is a PREVIOUS conversation. The panel then appeared
-   * above an empty thread claiming "32 components", explaining a surface the
-   * user had never seen.
-   *
-   * Tying it to a rendered `.a2ui-surface` makes the panel mean what it says:
-   * it is an annotation on something visible, so no surface means no panel.
-   */
-  useEffect(() => {
-    const check = () => setHasSurface(document.querySelectorAll(".a2ui-surface").length > 0);
-    check();
-    const observer = new MutationObserver(check);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
 
   /**
    * The trace is fetched from /api/a2ui-trace, which reads LangGraph directly.
@@ -265,7 +246,21 @@ export function A2UIPipeline() {
   }, [traceEndpoint, tracePollMs, threadId]);
 
   const trace = state?.a2ui_trace;
-  if (!trace || !hasSurface) return null;
+  // Show whenever there is something to explain.
+  //
+  // This used to also require a rendered `.a2ui-surface` in the DOM. The intent
+  // was right: never explain a surface the user has not seen. The mechanism was
+  // not. It sniffed for a class name owned by someone else's renderer, from a
+  // component portalled into someone else's chat, and when it came back false
+  // the panel vanished with a live surface on screen and nothing anywhere to
+  // say why. A component that renders null is indistinguishable from one that
+  // was never mounted.
+  //
+  // The original worry is now handled properly rather than defensively. The
+  // trace is fetched for THIS conversation, and the header states the question
+  // it explains and when that ran. A stale trace is labelled instead of hidden,
+  // which is more useful and cannot silently blank the panel.
+  if (!trace) return null;
 
   // What the UI was generated FROM: the products the workers actually found.
   const source = state?.surface?.data?.products ?? state?.surface?.data ?? null;
