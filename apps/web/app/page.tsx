@@ -29,7 +29,8 @@ export default function HomePage() {
             {products.length} products across {facets.length} categories.
             <span className="text-ink-faint">
               {" "}
-              The AI assistant arrives in Part 4.
+              Ask the assistant, bottom right — click a card first and it will know what
+              &ldquo;this one&rdquo; means.
             </span>
           </p>
         </div>

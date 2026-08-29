@@ -217,6 +217,17 @@ Note this also means **Part 5's agent → grid direction is unverified.** Clicki
 selection to the agent (confirmed working); the agent writing selection back to the grid depends on
 the same empty `agent.state` and has not been demonstrated.
 
+### The chat's anchor offsets are part of the size budget
+
+`copilot-chat.css` pins the popup with `inset: auto 1.5rem 6rem auto` — 24px from the right, 96px
+from the bottom to clear the launcher. A cap of `0.86 * innerHeight` looks safe and is not: on a
+608px viewport it yields 523, and `523 + 96` pushes the popup's **top** to `-11`, so the resize
+controls sit above the screen edge. `maxSize()` in `ChatResizer.tsx` and the `max-width` /
+`max-height` in the CSS must both subtract the anchor offsets, and they must agree.
+
+A saved size is also clamped to the current viewport on load and on every window resize — otherwise
+maximising on a wide monitor and reopening on a laptop restores a popup wider than the screen.
+
 ### Tailwind does not scan a workspace package unless you tell it
 
 Moving components into `packages/a2ui-kit` silently dropped **every Tailwind class they use**.

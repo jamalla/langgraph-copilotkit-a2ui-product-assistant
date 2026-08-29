@@ -20,8 +20,10 @@ div[class*="z-[1200]"] {
   inset: auto 1.5rem 6rem auto !important;
   width: var(--cpk-w) !important;
   height: var(--cpk-h) !important;
-  max-width: 94vw !important;
-  max-height: 88vh !important;
+  /* Must match maxSize() in ChatResizer.tsx: the anchor offsets above are part
+     of the budget, or the popup's top edge leaves the viewport. */
+  max-width: calc(100vw - 40px) !important;
+  max-height: calc(100vh - 112px) !important;
 }
 
 /* The container growing is not enough: the popup itself is sized independently
