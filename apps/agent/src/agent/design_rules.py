@@ -110,10 +110,15 @@ and use the SAME field names as a product, plus three of their own:
   quantityLabel   "Qty 2"
   lineTotalLabel  "$6,598"     price for that line, already multiplied
   cart.subtotalLabel and cart.itemCountLabel for the totals
+  cart.truncatedLabel  "Showing 12 of 36 lines", or empty when all fit
 
 Build it as a Column: a Text variant="h2" with itemCountLabel, then a List
 bound to /cart/items, then a Row with justify="spaceBetween" holding the
 word "Subtotal" and subtotalLabel.
+
+Bind truncatedLabel as a Text variant="caption" just under the List. Long
+carts show only their first lines, and a total that does not match the
+visible rows is alarming unless the surface says why.
 
 Each line is a Card with the Image, the name, priceLabel, quantityLabel and
 lineTotalLabel. The spec fields exist on a cart line but are empty, so leave

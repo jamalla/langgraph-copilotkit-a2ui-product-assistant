@@ -480,19 +480,43 @@ def display_cart_item(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+CART_LINE_CAP = 12
+"""How many cart lines a single generated surface may contain.
+
+The same ceiling as a product grid, and for the same reason. "add them all to
+my cart" produced a 36-line cart, and the subagent was then asked to design a
+component tree with 36 cards in it. The surface never arrived: the chat sat on
+"Building interface" indefinitely while the model wrote a tree far larger than
+anything the chat column could show.
+
+Truncating the LIST is safe because the totals do not come from it. Subtotal and
+item count are computed over the whole cart by the MCP server, so a shortened
+surface still reports what is really in the cart, and says how many it is not
+showing.
+"""
+
+
 def display_cart(cart: dict[str, Any]) -> dict[str, Any]:
-    """A cart with its lines projected and its totals pre-formatted."""
-    items = cart.get("items")
+    """A cart with its lines projected, capped, and its totals pre-formatted."""
+    items = cart.get("items") if isinstance(cart.get("items"), list) else []
     subtotal = cart.get("subtotal")
     count = cart.get("item_count") or 0
 
+    shown = items[:CART_LINE_CAP]
+    hidden = len(items) - len(shown)
+
     return {
         **cart,
-        "items": [display_cart_item(i) for i in items] if isinstance(items, list) else [],
+        "items": [display_cart_item(i) for i in shown],
         "subtotalLabel": (
             f"${subtotal:,.0f}" if isinstance(subtotal, (int, float)) else ""
         ),
         "itemCountLabel": f"{count} item" if count == 1 else f"{count} items",
+        # Empty when everything fits, so the model can bind it unconditionally
+        # and an empty Text renders as nothing.
+        "truncatedLabel": (
+            f"Showing {len(shown)} of {len(items)} lines" if hidden > 0 else ""
+        ),
     }
 
 

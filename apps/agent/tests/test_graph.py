@@ -880,3 +880,54 @@ def test_history_without_tool_calls_is_untouched():
 
     msgs = [HumanMessage(content="hi"), AIMessage(content="hello")]
     assert prune_dangling_tool_calls(msgs) == msgs
+
+
+def test_a_long_cart_is_capped_but_its_totals_are_not():
+    # "add them all to my cart" produced 36 lines, and the subagent was asked to
+    # design 36 cards. The surface never arrived: the chat sat on "Building
+    # interface" indefinitely. Truncating the list is safe because the totals
+    # are computed over the whole cart by the MCP server, not from the list.
+    from agent.a2ui import CART_LINE_CAP, display_cart
+
+    cart = {
+        "items": [
+            {
+                "product_id": f"p-{i}",
+                "name": f"Item {i}",
+                "brand": "B",
+                "unit_price": 100,
+                "quantity": 1,
+                "line_total": 100,
+                "in_stock": True,
+            }
+            for i in range(36)
+        ],
+        "item_count": 36,
+        "subtotal": 65564.0,
+        "currency": "USD",
+    }
+    out = display_cart(cart)
+    assert len(out["items"]) == CART_LINE_CAP
+    assert out["itemCountLabel"] == "36 items"
+    assert out["subtotalLabel"] == "$65,564"
+    assert out["truncatedLabel"] == "Showing 12 of 36 lines"
+
+
+def test_a_short_cart_says_nothing_about_truncation():
+    from agent.a2ui import display_cart
+
+    out = display_cart(
+        {"items": [{"product_id": "a", "name": "A", "unit_price": 1, "quantity": 1,
+                    "line_total": 1, "in_stock": True}],
+         "item_count": 1, "subtotal": 1.0}
+    )
+    assert out["truncatedLabel"] == ""
+    assert out["itemCountLabel"] == "1 item"
+
+
+def test_an_empty_cart_projects_without_raising():
+    from agent.a2ui import display_cart
+
+    out = display_cart({"items": [], "item_count": 0, "subtotal": 0})
+    assert out["items"] == []
+    assert out["itemCountLabel"] == "0 items"

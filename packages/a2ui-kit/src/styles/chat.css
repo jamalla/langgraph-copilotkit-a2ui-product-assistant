@@ -12,8 +12,14 @@
    =========================================================================== */
 
 :root {
-  --cpk-w: 420px;
-  --cpk-h: 560px;
+  /* The default adapts to the screen instead of being one fixed box.
+     420x560 is cramped for a generated product grid on a large monitor and
+     overflows a small laptop, and until the user touches the resizer these
+     values are what they get. `min()` picks whichever is smaller: a comfortable
+     size, or as much as the viewport can actually give. ChatResizer overwrites
+     both the moment a size is chosen or restored. */
+  --cpk-w: min(620px, calc(100vw - 40px));
+  --cpk-h: min(720px, calc(100vh - 112px));
 }
 
 div[class*="z-[1200]"] {
@@ -77,6 +83,64 @@ div[class*="z-[1200]"] > * {
   min-width: 0 !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
+
+  /* THE FIX FOR THE FLICKERING SCROLLBAR.
+
+     `overflow-y: auto` shows the bar only when content overflows. While a
+     surface streams in, the content height crosses that threshold repeatedly:
+     prose arrives, a skeleton appears, the skeleton is replaced by a taller
+     tree, images load and change height again. Every crossing adds or removes
+     the scrollbar, and the scrollbar has WIDTH, so the whole column reflows
+     sideways each time. That is the jitter - not the bar itself, but the
+     ~15px of content width appearing and vanishing under it.
+
+     `scrollbar-gutter: stable` reserves the space permanently. The bar still
+     comes and goes; the layout no longer moves when it does. */
+  scrollbar-gutter: stable;
+
+  /* A thinner, quieter bar. The default on Windows is heavy enough that its
+     arrival is itself distracting. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+
+  /* Browsers try to keep the visual position steady when content above the
+     viewport changes size. In a chat that also auto-scrolls to the bottom the
+     two mechanisms fight, and the result is the view jumping backwards mid
+     stream. The chat owns the scroll position here. */
+  overflow-anchor: none;
+
+  scroll-behavior: smooth;
+}
+
+.copilotKitMessages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.copilotKitMessages::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+}
+
+.copilotKitMessages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* A surface being built must not collapse to nothing and then snap open.
+
+   The placeholder and the finished tree are different heights, so the swap is
+   a jump the reader sees as the answer flinching. Holding a floor under the
+   surface while it streams turns that into growth from a stable base. */
+.copilotKitMessages .a2ui-surface {
+  min-height: 96px;
+  contain: layout paint;
+}
+
+/* Someone reading scrollback should not be yanked to the bottom by a surface
+   that is still growing above them. */
+@media (prefers-reduced-motion: reduce) {
+  .copilotKitMessages {
+    scroll-behavior: auto;
+  }
 }
 
 /* Nothing inside the chat may be wider than the chat. Long words, URLs and
