@@ -1,6 +1,11 @@
 "use client";
 
-import { CopilotKitProvider, CopilotPopup, useInterrupt } from "@copilotkit/react-core/v2";
+import {
+  CopilotKitProvider,
+  CopilotPopup,
+  useInterrupt,
+  useRenderTool,
+} from "@copilotkit/react-core/v2";
 
 import { A2UIKitConfigProvider, type A2UIKitConfig, useA2UIKitConfig } from "./config";
 import { ChatPipelineSlot } from "./chat/ChatPipelineSlot";
@@ -25,6 +30,35 @@ import { JourneyPanel } from "./explain/JourneyPanel";
  * breaks the chrome, everything to fix is in here rather than scattered
  * through an app.
  */
+
+/**
+ * How tool calls appear in the conversation.
+ *
+ * Without a renderer CopilotKit falls back to putting the raw call in the chat:
+ * a bubble reading `generate_a2ui` — or, mid-stream, the entire arguments
+ * payload as text. Backend calls become a quiet chip instead; the A2UI call
+ * renders nothing at all, because it paints its own surface and announcing it
+ * would caption a picture the user is already looking at.
+ */
+function ToolCallChips() {
+  useRenderTool({
+    name: "*",
+    render: (props: { name?: string; status?: string }) => {
+      const name = props.name ?? "";
+      if (!name || name.includes("a2ui")) return <></>;
+
+      const done = props.status === "complete" || props.status === "executed";
+      return (
+        <div className="my-1 inline-flex items-center gap-2 rounded-pill border border-line bg-surface-2 px-2.5 py-1 text-[11px] text-ink-muted">
+          <span className={done ? "text-positive" : "text-ink-faint"}>{done ? "✓" : "⋯"}</span>
+          <span className="font-mono">{name}</span>
+        </div>
+      );
+    },
+  });
+
+  return null;
+}
 
 /** Approve or decline a state-changing tool call the agent wants to make. */
 function ConfirmWrites() {
@@ -110,6 +144,7 @@ export function A2UIChatProvider({
     <CopilotKitProvider runtimeUrl={runtimeUrl}>
       <A2UIKitConfigProvider config={config}>
         <ConfirmWrites />
+        <ToolCallChips />
         {children}
         {app}
         <CopilotPopup
