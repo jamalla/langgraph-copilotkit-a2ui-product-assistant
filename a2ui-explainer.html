@@ -449,7 +449,9 @@ function go(n){
   const next = Math.max(0, Math.min(STEPS.length - 1, n));
   const moved = next !== i;
   i = next; render();
-  if (voiceOn && moved) speakStep(playing ? afterNarration : null);
+  // Speak only once the new step is on screen, so the caption, the stage and
+  // the voice are describing the same thing.
+  if (voiceOn && moved) requestAnimationFrame(() => speakStep(playing ? afterNarration : null));
 }
 
 function stop(){
@@ -462,6 +464,7 @@ function stop(){
 function afterNarration(){
   if (!playing) return;
   if (i >= STEPS.length - 1) return stop();
+  clearTimeout(timer);
   timer = setTimeout(() => { if (playing) go(i + 1); }, 700);
 }
 
@@ -522,28 +525,68 @@ if (TTS) {
   $("voice").title = "This browser has no speech synthesis";
 }
 
+let speakRun = 0;      // bumped on every cancel; stale callbacks check it
+
 function hush(){
+  speakRun++;                 // invalidate anything already in flight
   if (TTS) TTS.cancel();
   $("saying").hidden = true;
+  $("saying").textContent = "";
 }
 
-/* Speak the current step. `onEnd` lets Play advance when the sentence
-   finishes rather than on a fixed timer — the pacing then follows the words. */
+/* Split narration into sentences.
+
+   Two reasons, both of them bugs rather than polish. Chromium stops speaking
+   after roughly fifteen seconds and fires `onend` as though the utterance had
+   finished — on a paragraph-length line that lands mid-sentence, and the player
+   moves on while you are still listening. Shorter utterances stay under the
+   limit. It also lets the caption show the sentence actually being spoken. */
+function sentences(text){
+  return text.match(/[^.!?]+[.!?]+(\s|$)/g)?.map(t => t.trim()).filter(Boolean) || [text];
+}
+
+/* Speak the current step, one sentence at a time.
+
+   `speakRun` is what keeps the voice and the screen together. `TTS.cancel()`
+   fires `onend` on whatever is mid-flight — the browser reports a cancelled
+   utterance as a finished one — so without this guard the cancel triggered by
+   moving to the next step ran the advance callback again, and the display ran
+   further and further ahead of the narration. Every callback now checks that
+   it still belongs to the current run before doing anything. */
 function speakStep(onEnd){
   if (!TTS || !voiceOn) { if (onEnd) onEnd(); return; }
-  TTS.cancel();
 
-  const line = STEPS[i].n;
-  $("saying").textContent = line;
+  hush();                       // bumps speakRun
+  const run = speakRun;
+  const step = i;               // the step these words belong to
+  const parts = sentences(STEPS[i].n);
+  let at = 0;
+
   $("saying").hidden = false;
 
-  const said = new SpeechSynthesisUtterance(line);
-  if (chosen) { said.voice = chosen; said.lang = chosen.lang; }
-  said.rate = 0.97;   // a touch under default; this is dense material
-  said.pitch = 1;
-  said.onend = () => { $("saying").hidden = true; if (onEnd) onEnd(); };
-  said.onerror = () => { $("saying").hidden = true; if (onEnd) onEnd(); };
-  TTS.speak(said);
+  const sayNext = () => {
+    // Stale run, or the step changed under us: stop without advancing.
+    if (run !== speakRun || step !== i) return;
+
+    if (at >= parts.length) {
+      $("saying").hidden = true;
+      if (onEnd) onEnd();
+      return;
+    }
+
+    const line = parts[at++];
+    $("saying").textContent = line;
+
+    const said = new SpeechSynthesisUtterance(line);
+    if (chosen) { said.voice = chosen; said.lang = chosen.lang; }
+    said.rate = 0.97;           // a touch under default; this is dense material
+    said.pitch = 1;
+    said.onend = sayNext;
+    said.onerror = sayNext;     // a failed sentence must not strand the player
+    TTS.speak(said);
+  };
+
+  sayNext();
 }
 
 $("voice").onclick = () => {
