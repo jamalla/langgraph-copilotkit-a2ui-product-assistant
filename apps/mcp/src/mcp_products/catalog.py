@@ -154,7 +154,9 @@ def search(
     query: str | None = None,
     category: str | None = None,
     max_price: float | None = None,
+    min_price: float | None = None,
     min_rating: float | None = None,
+    sort: str = "relevance",
     in_stock_only: bool = False,
     stock: str = "any",
     limit: int = 10,
@@ -181,6 +183,8 @@ def search(
             continue
         if max_price is not None and p["price"] > max_price:
             continue
+        if min_price is not None and p["price"] < min_price:
+            continue
         if min_rating is not None and p["rating"] < min_rating:
             continue
         if in_stock_only and not p["inStock"]:
@@ -203,7 +207,21 @@ def search(
     # "noise" and "cancelling" is a better answer than one matching "noise"
     # very strongly and nothing else.
     scored.sort(key=lambda t: (t[1], t[0], _popularity(t[2])), reverse=True)
-    return [p for _, _, p in scored[: max(1, limit)]]
+    ranked = [p for _, _, p in scored]
+
+    # An explicit ordering, because relevance cannot answer "the cheapest".
+    #
+    # Without this the model had to eyeball prices across a relevance-ranked
+    # list and pick, which it does confidently and sometimes wrongly. Sorting is
+    # arithmetic; it belongs here, not in a language model.
+    if sort == "price_asc":
+        ranked.sort(key=lambda p: p["price"])
+    elif sort == "price_desc":
+        ranked.sort(key=lambda p: -p["price"])
+    elif sort == "rating_desc":
+        ranked.sort(key=lambda p: -_popularity(p))
+
+    return ranked[: max(1, limit)]
 
 
 def total_count() -> int:

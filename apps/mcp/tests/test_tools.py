@@ -239,3 +239,57 @@ def test_in_stock_only_still_works_for_callers_that_pass_it():
     assert catalog.search(in_stock_only=True, limit=30) == catalog.search(
         stock="in_stock", limit=30
     )
+
+
+# ---------------------------------------------------------------------------
+# Price bounds and ordering
+# ---------------------------------------------------------------------------
+#
+# "show me products higher than $1500" returned fifteen products including a $69
+# keyboard. Not a reasoning failure: search_products had max_price and no
+# min_price, so a floor was not expressible and the agent searched without one.
+# The same gap made superlatives guesswork, because relevance order cannot
+# answer "the cheapest".
+
+
+def test_min_price_excludes_everything_below_it():
+    from mcp_products import catalog
+
+    found = catalog.search(min_price=1500, limit=30)
+    assert found, "the catalog does contain products over $1500"
+    assert all(p["price"] >= 1500 for p in found)
+
+
+def test_min_price_finds_exactly_the_expensive_products():
+    from mcp_products import catalog
+
+    every = catalog.search(limit=30)
+    expected = {p["id"] for p in every if p["price"] >= 1500}
+    assert {p["id"] for p in catalog.search(min_price=1500, limit=30)} == expected
+
+
+def test_price_bounds_combine_into_a_band():
+    from mcp_products import catalog
+
+    band = catalog.search(min_price=200, max_price=400, limit=30)
+    assert band and all(200 <= p["price"] <= 400 for p in band)
+
+
+def test_cheapest_first_is_arithmetic_not_a_guess():
+    from mcp_products import catalog
+
+    prices = [p["price"] for p in catalog.search(sort="price_asc", limit=30)]
+    assert prices == sorted(prices)
+
+
+def test_most_expensive_first():
+    from mcp_products import catalog
+
+    prices = [p["price"] for p in catalog.search(sort="price_desc", limit=30)]
+    assert prices == sorted(prices, reverse=True)
+
+
+def test_relevance_stays_the_default():
+    from mcp_products import catalog
+
+    assert catalog.search(limit=30) == catalog.search(sort="relevance", limit=30)

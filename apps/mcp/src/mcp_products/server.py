@@ -65,6 +65,17 @@ def search_products(
     max_price: Annotated[
         float | None, Field(description="Upper price bound in USD, inclusive.", gt=0)
     ] = None,
+    min_price: Annotated[
+        float | None,
+        Field(
+            description=(
+                "Lower price bound in USD, inclusive. Use this for 'over $1500', "
+                "'more expensive than', 'premium' or 'high end'. Without it a "
+                "request for expensive products returns the whole catalog."
+            ),
+            gt=0,
+        ),
+    ] = None,
     min_rating: Annotated[
         float | None, Field(description="Lower bound on the 0-5 rating.", ge=0, le=5)
     ] = None,
@@ -82,6 +93,17 @@ def search_products(
             )
         ),
     ] = "any",
+    sort: Annotated[
+        Literal["relevance", "price_asc", "price_desc", "rating_desc"],
+        Field(
+            description=(
+                "Result order. 'price_asc' for cheapest first, 'price_desc' for "
+                "most expensive first, 'rating_desc' for best reviewed. Use these "
+                "for superlatives such as 'the cheapest' or 'your best' rather "
+                "than reading prices off a relevance-ranked list yourself."
+            )
+        ),
+    ] = "relevance",
     limit: Annotated[
         int, Field(description="Maximum results to return.", ge=1, le=30)
     ] = 8,
@@ -110,7 +132,9 @@ def search_products(
         query=query or None,
         category=category,
         max_price=max_price,
+        min_price=min_price,
         min_rating=min_rating,
+        sort=sort,
         in_stock_only=in_stock_only,
         stock=stock,
         limit=limit,
@@ -120,6 +144,8 @@ def search_products(
             "text": query,
             "category": category,
             "max_price": max_price,
+            "min_price": min_price,
+            "sort": sort,
             "min_rating": min_rating,
             "in_stock_only": in_stock_only,
             "stock": stock,
